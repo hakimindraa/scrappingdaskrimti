@@ -19,14 +19,19 @@ class SipedeScraper {
      */
     async openBrowser() {
         try {
-            // Launch visible browser (not headless)
+            // Check if running in production (Railway) - use headless mode
+            const isProduction = process.env.NODE_ENV === 'production';
+            
+            // Launch browser (headless in production, visible in development)
             this.browser = await chromium.launch({
-                headless: false,
-                args: ['--start-maximized']
+                headless: isProduction,
+                args: isProduction 
+                    ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+                    : ['--start-maximized']
             });
 
             this.context = await this.browser.newContext({
-                viewport: null,
+                viewport: isProduction ? { width: 1920, height: 1080 } : null,
                 userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             });
 
