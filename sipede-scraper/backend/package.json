@@ -4,6 +4,7 @@
     "description": "Backend API for SIPEDE web scraper",
     "main": "src/server.js",
     "scripts": {
+        "postinstall": "npx playwright install chromium --with-deps",
         "start": "node src/server.js",
         "dev": "nodemon src/server.js",
         "test:scraper": "node src/test/testScraper.js"
