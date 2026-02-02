@@ -610,6 +610,53 @@ export default function ScraperStyles() {
                 text-align: center;
             }
 
+            /* Scraping Status Detail */
+            .scraping-status-detail {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.75rem;
+                padding: 0.75rem 1.5rem;
+                margin: 1rem 0;
+                background: rgba(22, 163, 74, 0.1);
+                border: 1px solid rgba(22, 163, 74, 0.3);
+                border-radius: 10px;
+                font-size: 0.9rem;
+                color: #166534;
+                animation: fadeIn 0.3s ease-in-out;
+            }
+
+            .scraping-status-detail.navigating {
+                background: rgba(59, 130, 246, 0.1);
+                border-color: rgba(59, 130, 246, 0.3);
+                color: #1d4ed8;
+            }
+
+            .scraping-status-detail.waiting {
+                background: rgba(245, 158, 11, 0.1);
+                border-color: rgba(245, 158, 11, 0.3);
+                color: #b45309;
+            }
+
+            .scraping-status-detail.scraping {
+                background: rgba(22, 163, 74, 0.1);
+                border-color: rgba(22, 163, 74, 0.3);
+                color: #166534;
+            }
+
+            .scraping-status-detail .status-icon {
+                font-size: 1.25rem;
+            }
+
+            .scraping-status-detail .status-text {
+                font-weight: 500;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(-5px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
             /* Progress Stats */
             .progress-stats, .summary-stats {
                 display: flex;

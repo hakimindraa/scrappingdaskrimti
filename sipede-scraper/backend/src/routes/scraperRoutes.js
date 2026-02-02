@@ -17,6 +17,9 @@ router.get('/years', scraperController.getAvailableYears);
 // Change year filter
 router.post('/change-year', scraperController.changeYear);
 
+// Set entries per page
+router.post('/set-entries-per-page', scraperController.setEntriesPerPage);
+
 // Navigate to specific URL
 router.post('/navigate', scraperController.navigateTo);
 

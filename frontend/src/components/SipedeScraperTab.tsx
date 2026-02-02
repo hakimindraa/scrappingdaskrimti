@@ -19,6 +19,8 @@ export default function SipedeScraperTab() {
 
     // Scraping options
     const [maxPages, setMaxPages] = useState(0);
+    const [entriesPerPage, setEntriesPerPage] = useState(10);
+    const entriesOptions = [10, 25, 50, 100];
 
     // Data state
     const [data, setData] = useState<Record<string, string>[]>([]);
@@ -145,6 +147,35 @@ export default function SipedeScraperTab() {
             }
         } catch (err) {
             setError('Gagal mengubah filter tahun');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Handle entries per page change
+    const handleEntriesPerPageChange = async (entries: number) => {
+        if (entries === entriesPerPage) return;
+        
+        setIsLoading(true);
+        setError('');
+        try {
+            const result = await api.setEntriesPerPage(entries);
+            if (result.success) {
+                setEntriesPerPage(result.entriesPerPage || entries);
+                setData([]);
+                setTableInfo(null);
+                
+                // Re-detect table after entries change
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                const tableResult = await api.detectTable();
+                if (tableResult.success) {
+                    setTableInfo(tableResult);
+                }
+            } else {
+                setError(result.message || 'Gagal mengubah entries per page');
+            }
+        } catch (err) {
+            setError('Gagal mengubah entries per page');
         } finally {
             setIsLoading(false);
         }
@@ -357,6 +388,21 @@ export default function SipedeScraperTab() {
                                 </select>
                             </div>
 
+                        {/* Entries Per Page Dropdown */}
+                        <div className="year-filter-section">
+                            <label className="year-filter-label">📋 Entries Per Page:</label>
+                            <select 
+                                className="year-select"
+                                value={entriesPerPage}
+                                onChange={(e) => handleEntriesPerPageChange(parseInt(e.target.value))}
+                                disabled={isLoading}
+                            >
+                                {entriesOptions.map((num) => (
+                                    <option key={num} value={num}>{num}</option>
+                                ))}
+                            </select>
+                        </div>
+
                         {tableInfo && (
                             <>
                                 <div className="stats-grid">
@@ -422,10 +468,26 @@ export default function SipedeScraperTab() {
                         <h2>Sedang Scraping...</h2>
                         <p>Jangan tutup browser. Scraper sedang mengambil data {selectedYear ? `tahun ${selectedYear}` : ''}.</p>
 
+                        {/* Status detail dari SIPEDE */}
+                        {status?.scrapingMessage && (
+                            <div className={`scraping-status-detail ${status.scrapingPhase || 'idle'}`}>
+                                <span className="status-icon">
+                                    {status.scrapingPhase === 'navigating' && '🔄'}
+                                    {status.scrapingPhase === 'waiting' && '⏳'}
+                                    {status.scrapingPhase === 'scraping' && '📥'}
+                                </span>
+                                <span className="status-text">{status.scrapingMessage}</span>
+                            </div>
+                        )}
+
                         <div className="progress-stats">
                             <div className="stat">
+                                <span className="stat-value">{status?.currentPage || 0}</span>
+                                <span className="stat-label">Halaman Saat Ini</span>
+                            </div>
+                            <div className="stat">
                                 <span className="stat-value">{status?.pagesScraped || 0}</span>
-                                <span className="stat-label">Halaman</span>
+                                <span className="stat-label">Halaman Selesai</span>
                             </div>
                             <div className="stat">
                                 <span className="stat-value highlight">{status?.itemsScraped || 0}</span>

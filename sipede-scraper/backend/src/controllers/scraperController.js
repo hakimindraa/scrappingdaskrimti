@@ -14,8 +14,22 @@ let scrapeStatus = {
     currentUrl: null,
     tableInfo: null,
     availableYears: [],
-    selectedYear: null
+    selectedYear: null,
+    // Detailed scraping status: 'idle' | 'scraping' | 'navigating' | 'waiting'
+    scrapingPhase: 'idle',
+    scrapingMessage: ''
 };
+
+// Export function to update scraping status (for service/scraper to use)
+const updateScrapingStatus = (phase, message, currentPage = null) => {
+    scrapeStatus.scrapingPhase = phase;
+    scrapeStatus.scrapingMessage = message;
+    if (currentPage !== null) {
+        scrapeStatus.currentPage = currentPage;
+    }
+    console.log(`[STATUS] ${phase}: ${message}`);
+};
+exports.updateScrapingStatus = updateScrapingStatus;
 
 /**
  * Open browser and go to SIPEDE login page
@@ -130,6 +144,40 @@ exports.changeYear = async (req, res) => {
 };
 
 /**
+ * Set entries per page
+ */
+exports.setEntriesPerPage = async (req, res) => {
+    try {
+        const { entries } = req.body;
+
+        if (!entries || ![10, 25, 50, 100].includes(parseInt(entries))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid entries value required (10, 25, 50, or 100)'
+            });
+        }
+
+        const result = await scraperService.setEntriesPerPage(parseInt(entries));
+
+        if (result.success) {
+            // Clear previous data when changing entries per page
+            scrapedData = [];
+            scrapeStatus.pagesScraped = 0;
+            scrapeStatus.itemsScraped = 0;
+            scrapeStatus.tableInfo = null;
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('Set entries per page error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+/**
  * Get browser status
  */
 exports.getBrowserStatus = async (req, res) => {
@@ -199,7 +247,18 @@ exports.startScraping = async (req, res) => {
         scrapeStatus.itemsScraped = 0;
         scrapeStatus.startTime = Date.now();
         scrapeStatus.error = null;
+        scrapeStatus.scrapingPhase = 'scraping';
+        scrapeStatus.scrapingMessage = 'Memulai scraping...';
         scrapedData = [];
+
+        // Set up status callback for real-time updates
+        scraperService.setStatusCallback((phase, message, currentPage) => {
+            scrapeStatus.scrapingPhase = phase;
+            scrapeStatus.scrapingMessage = message;
+            if (currentPage !== null) {
+                scrapeStatus.currentPage = currentPage;
+            }
+        });
 
         // Send immediate response
         res.json({
@@ -208,18 +267,27 @@ exports.startScraping = async (req, res) => {
             status: scrapeStatus
         });
 
-        // Progress callback
-        const onProgress = (pageNum, pageData) => {
+        // Progress callback - update status and items count
+        const onProgress = (pageNum, pageData, totalItems) => {
             scrapeStatus.currentPage = pageNum;
             scrapeStatus.pagesScraped = pageNum;
-            scrapeStatus.itemsScraped += pageData.length;
-            scrapedData.push(...pageData);
+            scrapeStatus.itemsScraped = totalItems; // Update items count in real-time
+            console.log(`[Controller] Progress: page ${pageNum}, ${pageData.length} items on page, ${totalItems} total`);
         };
 
         // Start scraping in background
         const result = await scraperService.scrapeAllPages(onProgress, maxPages);
 
+        // Use the deduplicated data from result
+        if (result.success && result.data) {
+            scrapedData = result.data;
+            scrapeStatus.itemsScraped = result.data.length;
+            console.log(`[Controller] Scraping complete: ${result.data.length} items from ${result.pagesScraped} pages`);
+        }
+
         scrapeStatus.isRunning = false;
+        scrapeStatus.scrapingPhase = 'idle';
+        scrapeStatus.scrapingMessage = '';
         if (!result.success) {
             scrapeStatus.error = result.message;
         }

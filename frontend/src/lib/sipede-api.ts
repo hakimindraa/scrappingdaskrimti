@@ -35,6 +35,9 @@ export interface ScraperStatus {
     elapsedTime: number;
     availableYears: string[];
     selectedYear: string | null;
+    // Detailed scraping status
+    scrapingPhase: 'idle' | 'scraping' | 'navigating' | 'waiting';
+    scrapingMessage: string;
 }
 
 export interface DataPagination {
@@ -120,6 +123,15 @@ export async function changeYear(year: string): Promise<ApiResponse> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year }),
+    });
+    return response.json();
+}
+
+export async function setEntriesPerPage(entries: number): Promise<ApiResponse & { entriesPerPage?: number }> {
+    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/set-entries-per-page`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries }),
     });
     return response.json();
 }

@@ -3,6 +3,9 @@ const SipedeScraper = require('../scrapers/sipedeScraper');
 // Singleton instance
 let scraperInstance = null;
 
+// Status callback - will be set by controller
+let statusCallback = null;
+
 /**
  * Get or create scraper instance
  */
@@ -11,6 +14,15 @@ const getScraper = () => {
         scraperInstance = new SipedeScraper();
     }
     return scraperInstance;
+};
+
+/**
+ * Set status callback for real-time updates
+ */
+exports.setStatusCallback = (callback) => {
+    statusCallback = callback;
+    const scraper = getScraper();
+    scraper.setStatusCallback(callback);
 };
 
 /**
@@ -59,6 +71,14 @@ exports.getAvailableYears = async () => {
 exports.changeYear = async (year) => {
     const scraper = getScraper();
     return await scraper.changeYear(year);
+};
+
+/**
+ * Set entries per page
+ */
+exports.setEntriesPerPage = async (entries) => {
+    const scraper = getScraper();
+    return await scraper.setEntriesPerPage(entries);
 };
 
 /**
