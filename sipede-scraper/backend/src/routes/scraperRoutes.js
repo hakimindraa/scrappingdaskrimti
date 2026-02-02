@@ -8,6 +8,15 @@ router.post('/open', scraperController.openBrowser);
 // Get browser/scraper status
 router.get('/status', scraperController.getBrowserStatus);
 
+// Check login status and navigate to data page
+router.post('/check-login', scraperController.checkLoginAndNavigate);
+
+// Get available years
+router.get('/years', scraperController.getAvailableYears);
+
+// Change year filter
+router.post('/change-year', scraperController.changeYear);
+
 // Navigate to specific URL
 router.post('/navigate', scraperController.navigateTo);
 

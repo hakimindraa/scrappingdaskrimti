@@ -13,7 +13,7 @@ export default function ScraperStyles() {
             .tab-header h2 {
                 font-size: 1.75rem;
                 font-weight: 700;
-                background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+                background: linear-gradient(90deg, #16a34a, #059669);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
@@ -27,7 +27,7 @@ export default function ScraperStyles() {
             }
 
             .tab-header p {
-                color: #888;
+                color: #6b8e6b;
             }
 
             .tab-header .close-btn {
@@ -36,16 +36,16 @@ export default function ScraperStyles() {
                 gap: 0.5rem;
                 margin-top: 1rem;
                 padding: 0.5rem 1rem;
-                background: rgba(239, 68, 68, 0.2);
-                border: 1px solid rgba(239, 68, 68, 0.3);
+                background: rgba(220, 38, 38, 0.1);
+                border: 1px solid rgba(220, 38, 38, 0.3);
                 border-radius: 8px;
-                color: #f87171;
+                color: #dc2626;
                 cursor: pointer;
                 transition: all 0.3s;
             }
 
             .tab-header .close-btn:hover {
-                background: rgba(239, 68, 68, 0.3);
+                background: rgba(220, 38, 38, 0.2);
             }
 
             .tab-header .close-btn svg {
@@ -73,7 +73,7 @@ export default function ScraperStyles() {
                 align-items: center;
                 gap: 0.5rem;
                 padding: 0.5rem 1rem;
-                background: rgba(255, 255, 255, 0.05);
+                background: #f0f9f0;
                 border-radius: 20px;
                 opacity: 0.5;
                 transition: all 0.3s;
@@ -81,8 +81,8 @@ export default function ScraperStyles() {
 
             .step.active {
                 opacity: 1;
-                background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(123, 44, 191, 0.2));
-                border: 1px solid rgba(0, 212, 255, 0.3);
+                background: linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(5, 150, 105, 0.15));
+                border: 1px solid rgba(22, 163, 74, 0.3);
             }
 
             .spp-theme .step.active {
@@ -92,7 +92,7 @@ export default function ScraperStyles() {
 
             .step.done {
                 opacity: 0.8;
-                background: rgba(16, 185, 129, 0.2);
+                background: rgba(22, 163, 74, 0.15);
             }
 
             .step-num {
@@ -101,15 +101,16 @@ export default function ScraperStyles() {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: rgba(255, 255, 255, 0.1);
+                background: #d4e7d4;
                 border-radius: 50%;
                 font-size: 0.75rem;
                 font-weight: 600;
+                color: #1a3a1a;
             }
 
             .step.active .step-num {
-                background: #00d4ff;
-                color: #000;
+                background: #16a34a;
+                color: #fff;
             }
 
             .spp-theme .step.active .step-num {
@@ -117,7 +118,7 @@ export default function ScraperStyles() {
             }
 
             .step.done .step-num {
-                background: #10b981;
+                background: #16a34a;
                 color: #fff;
             }
 
@@ -128,7 +129,7 @@ export default function ScraperStyles() {
             .step-line {
                 width: 30px;
                 height: 2px;
-                background: rgba(255, 255, 255, 0.1);
+                background: #d4e7d4;
             }
 
             /* Error Box */
@@ -137,10 +138,10 @@ export default function ScraperStyles() {
                 align-items: center;
                 gap: 0.75rem;
                 padding: 1rem;
-                background: rgba(239, 68, 68, 0.1);
-                border: 1px solid rgba(239, 68, 68, 0.3);
+                background: rgba(220, 38, 38, 0.08);
+                border: 1px solid rgba(220, 38, 38, 0.3);
                 border-radius: 10px;
-                color: #f87171;
+                color: #dc2626;
                 margin-bottom: 1.5rem;
             }
 
@@ -148,7 +149,7 @@ export default function ScraperStyles() {
                 margin-left: auto;
                 background: none;
                 border: none;
-                color: #f87171;
+                color: #dc2626;
                 font-size: 1.25rem;
                 cursor: pointer;
             }
@@ -156,20 +157,21 @@ export default function ScraperStyles() {
             /* Info Box */
             .info-box {
                 padding: 1rem;
-                background: rgba(59, 130, 246, 0.1);
-                border: 1px solid rgba(59, 130, 246, 0.3);
+                background: rgba(22, 163, 74, 0.08);
+                border: 1px solid rgba(22, 163, 74, 0.3);
                 border-radius: 8px;
-                color: #60a5fa;
+                color: #16a34a;
                 margin-bottom: 1.5rem;
                 font-size: 0.875rem;
             }
 
             /* Cards */
             .card {
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: #ffffff;
+                border: 1px solid #d4e7d4;
                 border-radius: 16px;
                 padding: 2rem;
+                box-shadow: 0 4px 12px rgba(22, 163, 74, 0.08);
             }
 
             .main-card {
@@ -183,7 +185,7 @@ export default function ScraperStyles() {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(123, 44, 191, 0.2));
+                background: linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(5, 150, 105, 0.15));
                 border-radius: 50%;
             }
 
@@ -194,7 +196,7 @@ export default function ScraperStyles() {
             .card-icon svg {
                 width: 32px;
                 height: 32px;
-                color: #00d4ff;
+                color: #16a34a;
             }
 
             .card-icon.spp svg {
@@ -202,11 +204,11 @@ export default function ScraperStyles() {
             }
 
             .card-icon.success {
-                background: rgba(16, 185, 129, 0.2);
+                background: rgba(22, 163, 74, 0.15);
             }
 
             .card-icon.success svg {
-                color: #10b981;
+                color: #16a34a;
             }
 
             .card-icon.pulse {
@@ -221,11 +223,11 @@ export default function ScraperStyles() {
             .main-card h2 {
                 font-size: 1.5rem;
                 margin-bottom: 0.75rem;
-                color: #fff;
+                color: #1a3a1a;
             }
 
             .main-card p {
-                color: #888;
+                color: #6b8e6b;
                 margin-bottom: 1.5rem;
             }
 
@@ -235,17 +237,108 @@ export default function ScraperStyles() {
                 align-items: center;
                 gap: 0.5rem;
                 padding: 0.75rem 1.5rem;
-                background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2));
-                border: 1px solid rgba(251, 191, 36, 0.4);
+                background: linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(5, 150, 105, 0.15));
+                border: 1px solid rgba(22, 163, 74, 0.4);
                 border-radius: 50px;
-                color: #fbbf24;
+                color: #16a34a;
                 font-size: 1rem;
                 margin-bottom: 1.5rem;
             }
 
             .year-badge strong {
                 font-size: 1.25rem;
-                color: #fcd34d;
+                color: #059669;
+            }
+
+            /* Year Filter Section */
+            .year-filter-section {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 1.5rem;
+                padding: 1.5rem;
+                background: linear-gradient(135deg, rgba(22, 163, 74, 0.08), rgba(5, 150, 105, 0.05));
+                border: 1px solid rgba(22, 163, 74, 0.2);
+                border-radius: 12px;
+            }
+
+            .year-filter-label {
+                font-size: 0.9rem;
+                font-weight: 600;
+                color: #1a3a1a;
+            }
+
+            .year-select {
+                padding: 0.75rem 2rem 0.75rem 1rem;
+                font-size: 1.1rem;
+                font-weight: 600;
+                background: #ffffff;
+                border: 2px solid #16a34a;
+                border-radius: 10px;
+                color: #16a34a;
+                cursor: pointer;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2316a34a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 0.75rem center;
+                min-width: 150px;
+                text-align: center;
+                transition: all 0.3s;
+            }
+
+            .year-select:hover {
+                background-color: #f0f9f0;
+                box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);
+            }
+
+            .year-select:focus {
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+            }
+
+            .year-select:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            /* Year Filter Inline (for done page) */
+            .year-filter-inline {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+
+            .year-filter-inline label {
+                font-size: 0.875rem;
+                color: #6b8e6b;
+            }
+
+            .year-select-inline {
+                padding: 0.5rem 1.5rem 0.5rem 0.75rem;
+                font-size: 0.9rem;
+                font-weight: 500;
+                background: #ffffff;
+                border: 1px solid #d4e7d4;
+                border-radius: 8px;
+                color: #16a34a;
+                cursor: pointer;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%2316a34a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 0.5rem center;
+            }
+
+            .year-select-inline:focus {
+                outline: none;
+                border-color: #16a34a;
+            }
+
+            /* Year Info Text */
+            .year-info {
+                color: #16a34a;
+                font-weight: 500;
+                margin-bottom: 0.5rem;
             }
 
             /* Stats Grid */
@@ -261,20 +354,20 @@ export default function ScraperStyles() {
                 flex-direction: column;
                 align-items: center;
                 padding: 1rem;
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: #f0f9f0;
+                border: 1px solid #d4e7d4;
                 border-radius: 12px;
             }
 
             .stat-card .stat-value {
                 font-size: 1.5rem;
                 font-weight: 700;
-                color: #fff;
+                color: #16a34a;
             }
 
             .stat-card .stat-label {
                 font-size: 0.75rem;
-                color: #888;
+                color: #6b8e6b;
             }
 
             /* Buttons */
@@ -284,7 +377,7 @@ export default function ScraperStyles() {
                 justify-content: center;
                 gap: 0.5rem;
                 padding: 1rem 2rem;
-                background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+                background: linear-gradient(135deg, #16a34a, #059669);
                 border: none;
                 border-radius: 10px;
                 color: #fff;
@@ -300,7 +393,7 @@ export default function ScraperStyles() {
 
             .primary-btn:hover:not(:disabled) {
                 transform: translateY(-2px);
-                box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
+                box-shadow: 0 8px 20px rgba(22, 163, 74, 0.3);
             }
 
             .primary-btn.spp:hover:not(:disabled) {
@@ -313,7 +406,7 @@ export default function ScraperStyles() {
             }
 
             .primary-btn.success {
-                background: linear-gradient(135deg, #10b981, #059669);
+                background: linear-gradient(135deg, #16a34a, #059669);
             }
 
             .primary-btn svg {
@@ -330,15 +423,15 @@ export default function ScraperStyles() {
             }
 
             .secondary-btn {
-                background: rgba(0, 212, 255, 0.1);
-                border: 1px solid rgba(0, 212, 255, 0.3);
-                color: #00d4ff;
+                background: rgba(22, 163, 74, 0.1);
+                border: 1px solid rgba(22, 163, 74, 0.3);
+                color: #16a34a;
             }
 
             .danger-btn {
-                background: rgba(239, 68, 68, 0.1);
-                border: 1px solid rgba(239, 68, 68, 0.3);
-                color: #f87171;
+                background: rgba(220, 38, 38, 0.1);
+                border: 1px solid rgba(220, 38, 38, 0.3);
+                color: #dc2626;
             }
 
             .action-row {
@@ -358,14 +451,14 @@ export default function ScraperStyles() {
 
             .instruction-list li {
                 margin-bottom: 0.5rem;
-                color: #ccc;
+                color: #3d5c3d;
             }
 
             .instruction-list code {
-                background: rgba(0, 212, 255, 0.1);
+                background: rgba(22, 163, 74, 0.1);
                 padding: 0.125rem 0.5rem;
                 border-radius: 4px;
-                color: #00d4ff;
+                color: #16a34a;
                 font-size: 0.8rem;
             }
 
@@ -376,18 +469,18 @@ export default function ScraperStyles() {
                 justify-content: center;
                 gap: 0.5rem;
                 padding: 0.75rem 1rem;
-                background: rgba(255, 255, 255, 0.05);
+                background: #f0f9f0;
                 border-radius: 8px;
                 margin-bottom: 1.5rem;
                 font-size: 0.875rem;
             }
 
             .url-label {
-                color: #888;
+                color: #6b8e6b;
             }
 
             .url-value {
-                color: #00d4ff;
+                color: #16a34a;
                 word-break: break-all;
             }
 
@@ -400,7 +493,81 @@ export default function ScraperStyles() {
             .preview-label {
                 display: block;
                 font-size: 0.875rem;
-                color: #888;
+                color: #6b8e6b;
+                margin-bottom: 0.5rem;
+            }
+
+            /* Year Filter Section */
+            .year-filter-section {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .year-filter-label {
+                font-size: 0.9rem;
+                color: #3d5c3d;
+                font-weight: 500;
+            }
+
+            .year-select {
+                padding: 0.75rem 2rem 0.75rem 1rem;
+                font-size: 1rem;
+                background: #ffffff;
+                border: 2px solid #16a34a;
+                border-radius: 10px;
+                color: #1a3a1a;
+                cursor: pointer;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 0.5rem center;
+                background-size: 1.25rem;
+                min-width: 150px;
+                font-weight: 600;
+            }
+
+            .year-select:focus {
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+            }
+
+            .year-select:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            .year-filter-inline {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+
+            .year-filter-inline label {
+                font-size: 0.875rem;
+                color: #3d5c3d;
+            }
+
+            .year-select-inline {
+                padding: 0.5rem 1.5rem 0.5rem 0.75rem;
+                font-size: 0.875rem;
+                background: #ffffff;
+                border: 1px solid #d4e7d4;
+                border-radius: 6px;
+                color: #1a3a1a;
+                cursor: pointer;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 0.35rem center;
+                background-size: 1rem;
+            }
+
+            .year-info {
+                font-size: 0.9rem;
+                color: #16a34a;
                 margin-bottom: 0.5rem;
             }
 
@@ -412,11 +579,11 @@ export default function ScraperStyles() {
 
             .header-tag {
                 padding: 0.25rem 0.75rem;
-                background: rgba(0, 212, 255, 0.1);
-                border: 1px solid rgba(0, 212, 255, 0.2);
+                background: rgba(22, 163, 74, 0.1);
+                border: 1px solid rgba(22, 163, 74, 0.2);
                 border-radius: 4px;
                 font-size: 0.75rem;
-                color: #00d4ff;
+                color: #16a34a;
             }
 
             /* Max Pages Input */
@@ -430,16 +597,16 @@ export default function ScraperStyles() {
 
             .max-pages-input label {
                 font-size: 0.875rem;
-                color: #888;
+                color: #6b8e6b;
             }
 
             .max-pages-input input {
                 width: 80px;
                 padding: 0.5rem 1rem;
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: #f0f9f0;
+                border: 1px solid #d4e7d4;
                 border-radius: 6px;
-                color: #fff;
+                color: #1a3a1a;
                 text-align: center;
             }
 
@@ -459,11 +626,11 @@ export default function ScraperStyles() {
                 display: block;
                 font-size: 2rem;
                 font-weight: 700;
-                color: #fff;
+                color: #1a3a1a;
             }
 
             .stat-value.highlight {
-                color: #00d4ff;
+                color: #16a34a;
             }
 
             .stat-value.highlight.spp {
@@ -472,21 +639,21 @@ export default function ScraperStyles() {
 
             .stat-label {
                 font-size: 0.75rem;
-                color: #888;
+                color: #6b8e6b;
                 text-transform: uppercase;
             }
 
             /* Progress Bar */
             .progress-bar-container {
                 height: 6px;
-                background: rgba(255, 255, 255, 0.1);
+                background: #d4e7d4;
                 border-radius: 3px;
                 overflow: hidden;
             }
 
             .progress-bar {
                 height: 100%;
-                background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+                background: linear-gradient(90deg, #16a34a, #059669);
                 border-radius: 3px;
             }
 
@@ -512,8 +679,8 @@ export default function ScraperStyles() {
             }
 
             .summary-card {
-                background: rgba(16, 185, 129, 0.1);
-                border: 1px solid rgba(16, 185, 129, 0.3);
+                background: rgba(22, 163, 74, 0.08);
+                border: 1px solid rgba(22, 163, 74, 0.3);
                 border-radius: 12px;
                 padding: 1.5rem;
                 text-align: center;
@@ -526,7 +693,7 @@ export default function ScraperStyles() {
 
             .summary-card h3 {
                 font-size: 1.25rem;
-                color: #10b981;
+                color: #16a34a;
                 margin-bottom: 1rem;
             }
 
@@ -551,18 +718,18 @@ export default function ScraperStyles() {
             .search-form input {
                 padding: 0.625rem 1rem;
                 width: 250px;
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: #f0f9f0;
+                border: 1px solid #d4e7d4;
                 border-radius: 8px;
-                color: #fff;
+                color: #1a3a1a;
             }
 
             .search-form button {
                 padding: 0.625rem 1rem;
-                background: rgba(0, 212, 255, 0.2);
-                border: 1px solid rgba(0, 212, 255, 0.3);
+                background: rgba(22, 163, 74, 0.15);
+                border: 1px solid rgba(22, 163, 74, 0.3);
                 border-radius: 8px;
-                color: #00d4ff;
+                color: #16a34a;
                 cursor: pointer;
             }
 
@@ -583,21 +750,21 @@ export default function ScraperStyles() {
             }
 
             .export-btn.csv {
-                background: rgba(16, 185, 129, 0.2);
-                border: 1px solid rgba(16, 185, 129, 0.3);
-                color: #34d399;
+                background: rgba(22, 163, 74, 0.15);
+                border: 1px solid rgba(22, 163, 74, 0.3);
+                color: #16a34a;
             }
 
             .export-btn.json {
-                background: rgba(251, 191, 36, 0.2);
-                border: 1px solid rgba(251, 191, 36, 0.3);
-                color: #fbbf24;
+                background: rgba(245, 158, 11, 0.15);
+                border: 1px solid rgba(245, 158, 11, 0.3);
+                color: #d97706;
             }
 
             /* Table */
             .table-container {
-                background: rgba(255, 255, 255, 0.03);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: #ffffff;
+                border: 1px solid #d4e7d4;
                 border-radius: 12px;
                 overflow-x: auto;
             }
@@ -608,7 +775,7 @@ export default function ScraperStyles() {
                 align-items: center;
                 justify-content: center;
                 padding: 3rem;
-                color: #888;
+                color: #6b8e6b;
             }
 
             .data-table {
@@ -619,25 +786,25 @@ export default function ScraperStyles() {
 
             .data-table th {
                 padding: 1rem;
-                background: rgba(0, 212, 255, 0.1);
-                color: #00d4ff;
+                background: rgba(22, 163, 74, 0.08);
+                color: #16a34a;
                 font-size: 0.75rem;
                 font-weight: 600;
                 text-transform: uppercase;
                 text-align: left;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                border-bottom: 1px solid #d4e7d4;
                 white-space: nowrap;
             }
 
             .data-table td {
                 padding: 0.75rem 1rem;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                border-bottom: 1px solid #e8f5e8;
                 font-size: 0.875rem;
-                color: #e0e0e0;
+                color: #1a3a1a;
             }
 
             .data-table tr:hover {
-                background: rgba(255, 255, 255, 0.03);
+                background: #f0f9f0;
             }
 
             /* Pagination */
@@ -650,15 +817,15 @@ export default function ScraperStyles() {
 
             .page-btn {
                 padding: 0.5rem 1rem;
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: #f0f9f0;
+                border: 1px solid #d4e7d4;
                 border-radius: 6px;
-                color: #fff;
+                color: #1a3a1a;
                 cursor: pointer;
             }
 
             .page-btn:hover:not(:disabled) {
-                background: rgba(0, 212, 255, 0.2);
+                background: rgba(22, 163, 74, 0.15);
             }
 
             .page-btn:disabled {
@@ -668,7 +835,7 @@ export default function ScraperStyles() {
 
             .page-info {
                 font-size: 0.875rem;
-                color: #888;
+                color: #6b8e6b;
             }
 
             /* Action Buttons */
@@ -684,8 +851,8 @@ export default function ScraperStyles() {
                 display: inline-block;
                 width: 16px;
                 height: 16px;
-                border: 2px solid rgba(255, 255, 255, 0.3);
-                border-top-color: #fff;
+                border: 2px solid rgba(22, 163, 74, 0.3);
+                border-top-color: #16a34a;
                 border-radius: 50%;
                 animation: spin 0.8s linear infinite;
             }

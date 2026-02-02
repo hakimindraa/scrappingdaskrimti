@@ -33,6 +33,8 @@ export interface ScraperStatus {
     tableInfo: TableInfo | null;
     dataCount: number;
     elapsedTime: number;
+    availableYears: string[];
+    selectedYear: string | null;
 }
 
 export interface DataPagination {
@@ -59,6 +61,21 @@ export interface ApiResponse {
     url?: string;
 }
 
+export interface CheckLoginResponse {
+    success: boolean;
+    message?: string;
+    isLoggedIn: boolean;
+    url?: string;
+    availableYears: string[];
+    selectedYear: string | null;
+}
+
+export interface YearsResponse {
+    success: boolean;
+    years: string[];
+    selectedYear: string | null;
+}
+
 export interface DetectTableResponse {
     success: boolean;
     headers?: string[];
@@ -83,6 +100,27 @@ export async function openBrowser(): Promise<ApiResponse> {
 
 export async function getStatus(): Promise<StatusResponse> {
     const response = await fetch(`${SIPEDE_API_URL}/api/scraper/status`);
+    return response.json();
+}
+
+export async function checkLoginAndNavigate(): Promise<CheckLoginResponse> {
+    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/check-login`, {
+        method: 'POST',
+    });
+    return response.json();
+}
+
+export async function getAvailableYears(): Promise<YearsResponse> {
+    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/years`);
+    return response.json();
+}
+
+export async function changeYear(year: string): Promise<ApiResponse> {
+    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/change-year`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year }),
+    });
     return response.json();
 }
 

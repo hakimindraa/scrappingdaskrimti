@@ -38,6 +38,30 @@ exports.navigateTo = async (url) => {
 };
 
 /**
+ * Wait for login and navigate to data page
+ */
+exports.waitForLoginAndNavigate = async () => {
+    const scraper = getScraper();
+    return await scraper.waitForLoginAndNavigate();
+};
+
+/**
+ * Get available years
+ */
+exports.getAvailableYears = async () => {
+    const scraper = getScraper();
+    return await scraper.detectAvailableYears();
+};
+
+/**
+ * Change year filter
+ */
+exports.changeYear = async (year) => {
+    const scraper = getScraper();
+    return await scraper.changeYear(year);
+};
+
+/**
  * Detect table structure
  */
 exports.detectTableStructure = async () => {

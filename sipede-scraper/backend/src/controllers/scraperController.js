@@ -12,7 +12,9 @@ let scrapeStatus = {
     startTime: null,
     error: null,
     currentUrl: null,
-    tableInfo: null
+    tableInfo: null,
+    availableYears: [],
+    selectedYear: null
 };
 
 /**
@@ -30,6 +32,96 @@ exports.openBrowser = async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Open browser error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+/**
+ * Check login status and navigate to data page
+ */
+exports.checkLoginAndNavigate = async (req, res) => {
+    try {
+        const result = await scraperService.waitForLoginAndNavigate();
+
+        if (result.success) {
+            scrapeStatus.isLoggedIn = true;
+            scrapeStatus.currentUrl = result.url;
+            scrapeStatus.availableYears = result.availableYears || [];
+            scrapeStatus.selectedYear = result.selectedYear;
+        }
+
+        res.json({
+            success: result.success,
+            message: result.message,
+            isLoggedIn: result.isLoggedIn || false,
+            url: result.url,
+            availableYears: result.availableYears || [],
+            selectedYear: result.selectedYear
+        });
+    } catch (error) {
+        console.error('Check login error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+/**
+ * Get available years
+ */
+exports.getAvailableYears = async (req, res) => {
+    try {
+        const result = await scraperService.getAvailableYears();
+        
+        scrapeStatus.availableYears = result.years || [];
+        scrapeStatus.selectedYear = result.selectedYear;
+
+        res.json({
+            success: result.success,
+            years: result.years || [],
+            selectedYear: result.selectedYear
+        });
+    } catch (error) {
+        console.error('Get years error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+/**
+ * Change year filter
+ */
+exports.changeYear = async (req, res) => {
+    try {
+        const { year } = req.body;
+
+        if (!year) {
+            return res.status(400).json({
+                success: false,
+                message: 'Year is required'
+            });
+        }
+
+        const result = await scraperService.changeYear(year);
+
+        if (result.success) {
+            scrapeStatus.selectedYear = year;
+            // Clear previous data when changing year
+            scrapedData = [];
+            scrapeStatus.pagesScraped = 0;
+            scrapeStatus.itemsScraped = 0;
+            scrapeStatus.tableInfo = null;
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('Change year error:', error);
         res.status(500).json({
             success: false,
             message: error.message

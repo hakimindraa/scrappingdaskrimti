@@ -9,9 +9,12 @@ class SipedeScraper {
         this.context = null;
         this.page = null;
         this.baseUrl = 'https://sipede.kejaksaan.go.id';
+        this.targetDataUrl = 'https://sipede.kejaksaan.go.id/suratterkirim?type=terkirim';
         this.isReady = false;
         this.currentUrl = null;
         this.detectedHeaders = [];
+        this.availableYears = [];
+        this.selectedYear = null;
     }
 
     /**
@@ -47,8 +50,9 @@ class SipedeScraper {
 
             return {
                 success: true,
-                message: 'Browser opened. Please login manually and navigate to the data page.',
-                url: this.currentUrl
+                message: 'Browser opened. Please login manually.',
+                url: this.currentUrl,
+                targetUrl: this.targetDataUrl
             };
         } catch (error) {
             console.error('Open browser error:', error);
@@ -56,6 +60,163 @@ class SipedeScraper {
                 success: false,
                 message: `Failed to open browser: ${error.message}`
             };
+        }
+    }
+
+    /**
+     * Wait for user to login and then navigate to data page
+     */
+    async waitForLoginAndNavigate() {
+        try {
+            if (!this.page) {
+                return { success: false, message: 'Browser not open' };
+            }
+
+            // Check if still on login page
+            this.currentUrl = this.page.url();
+            if (this.currentUrl.includes('/login')) {
+                return { 
+                    success: false, 
+                    message: 'Please login first. Waiting for login...',
+                    isLoggedIn: false 
+                };
+            }
+
+            // User is logged in, navigate to data page
+            console.log('User logged in, navigating to data page...');
+            await this.page.goto(this.targetDataUrl, { 
+                waitUntil: 'networkidle',
+                timeout: 30000 
+            });
+            
+            // Wait a bit for the page to fully load
+            await this.page.waitForTimeout(2000);
+            
+            this.currentUrl = this.page.url();
+
+            // Detect available years after navigation
+            const yearsResult = await this.detectAvailableYears();
+            
+            return {
+                success: true,
+                message: 'Navigated to data page successfully',
+                url: this.currentUrl,
+                isLoggedIn: true,
+                availableYears: yearsResult.years || [],
+                selectedYear: yearsResult.selectedYear || null
+            };
+        } catch (error) {
+            console.error('Navigation error:', error);
+            return {
+                success: false,
+                message: error.message
+            };
+        }
+    }
+
+    /**
+     * Detect available years from the year dropdown on the page
+     */
+    async detectAvailableYears() {
+        try {
+            if (!this.page) {
+                return { success: false, years: [], selectedYear: null };
+            }
+
+            const yearsInfo = await this.page.evaluate(() => {
+                // Find year filter dropdown - look for select with year options
+                const selects = document.querySelectorAll('select');
+                
+                for (const select of selects) {
+                    const name = (select.name || select.id || '').toLowerCase();
+                    const options = Array.from(select.options);
+                    
+                    // Check if this looks like a year filter
+                    const hasYearOptions = options.some(opt => /^\d{4}$/.test(opt.value) || /^\d{4}$/.test(opt.text));
+                    const isYearByName = name.includes('tahun') || name.includes('year');
+                    
+                    if (hasYearOptions || isYearByName) {
+                        const years = options
+                            .map(opt => opt.value || opt.text)
+                            .filter(val => /^\d{4}$/.test(val));
+                        
+                        const selectedOption = select.options[select.selectedIndex];
+                        const selectedYear = selectedOption ? (selectedOption.value || selectedOption.text) : null;
+                        
+                        return {
+                            success: true,
+                            years: years,
+                            selectedYear: /^\d{4}$/.test(selectedYear) ? selectedYear : years[0] || null,
+                            selectorInfo: { name: select.name, id: select.id }
+                        };
+                    }
+                }
+                
+                return { success: false, years: [], selectedYear: null };
+            });
+
+            this.availableYears = yearsInfo.years || [];
+            this.selectedYear = yearsInfo.selectedYear;
+            
+            return yearsInfo;
+        } catch (error) {
+            console.error('Error detecting years:', error);
+            return { success: false, years: [], selectedYear: null, error: error.message };
+        }
+    }
+
+    /**
+     * Change the year filter on the page
+     */
+    async changeYear(year) {
+        try {
+            if (!this.page) {
+                return { success: false, message: 'Browser not open' };
+            }
+
+            console.log(`Changing year filter to: ${year}`);
+
+            const result = await this.page.evaluate((targetYear) => {
+                const selects = document.querySelectorAll('select');
+                
+                for (const select of selects) {
+                    const name = (select.name || select.id || '').toLowerCase();
+                    const options = Array.from(select.options);
+                    
+                    const hasYearOptions = options.some(opt => /^\d{4}$/.test(opt.value) || /^\d{4}$/.test(opt.text));
+                    const isYearByName = name.includes('tahun') || name.includes('year');
+                    
+                    if (hasYearOptions || isYearByName) {
+                        // Find the option with matching year
+                        for (let i = 0; i < select.options.length; i++) {
+                            const opt = select.options[i];
+                            if (opt.value === targetYear || opt.text === targetYear) {
+                                select.selectedIndex = i;
+                                // Trigger change event
+                                select.dispatchEvent(new Event('change', { bubbles: true }));
+                                return { success: true, selectedYear: targetYear };
+                            }
+                        }
+                        return { success: false, message: `Year ${targetYear} not found in dropdown` };
+                    }
+                }
+                
+                return { success: false, message: 'Year filter dropdown not found' };
+            }, year);
+
+            if (result.success) {
+                // Wait for page to reload/update after year change
+                await this.page.waitForLoadState('networkidle');
+                await this.page.waitForTimeout(2000);
+                
+                this.selectedYear = year;
+                this.currentUrl = this.page.url();
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Error changing year:', error);
+            return { success: false, message: error.message };
         }
     }
 
