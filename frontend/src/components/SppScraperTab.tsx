@@ -376,6 +376,34 @@ export default function SppScraperTab() {
                         <h2>Sedang Scraping...</h2>
                         <p>Jangan tutup browser. Scraper sedang mengambil data dari SPP.</p>
 
+                        {/* Progress Percentage */}
+                        <div className="scraping-progress-section">
+                            <div className="progress-header-row">
+                                <span className="progress-label">Progress Scraping</span>
+                                <span className="progress-percentage">
+                                    {status?.tableInfo?.pagination?.totalPages && status.tableInfo.pagination.totalPages > 0
+                                        ? Math.round((status.pagesScraped / status.tableInfo.pagination.totalPages) * 100)
+                                        : 0}%
+                                </span>
+                            </div>
+                            <div className="progress-track">
+                                <div 
+                                    className="progress-fill"
+                                    style={{ 
+                                        width: `${status?.tableInfo?.pagination?.totalPages && status.tableInfo.pagination.totalPages > 0
+                                            ? (status.pagesScraped / status.tableInfo.pagination.totalPages) * 100
+                                            : 0}%` 
+                                    }}
+                                >
+                                    <div className="progress-shine"></div>
+                                </div>
+                            </div>
+                            <div className="progress-footer-row">
+                                <span>Page {status?.pagesScraped || 0} / {status?.tableInfo?.pagination?.totalPages || '?'}</span>
+                                <span>{status?.elapsedTime || 0}s elapsed</span>
+                            </div>
+                        </div>
+
                         <div className="progress-stats">
                             <div className="stat">
                                 <span className="stat-value">{status?.pagesScraped || 0}</span>
@@ -389,10 +417,6 @@ export default function SppScraperTab() {
                                 <span className="stat-value">{status?.elapsedTime || 0}s</span>
                                 <span className="stat-label">Waktu</span>
                             </div>
-                        </div>
-
-                        <div className="progress-bar-container">
-                            <div className="progress-bar indeterminate spp" />
                         </div>
                     </div>
                 )}

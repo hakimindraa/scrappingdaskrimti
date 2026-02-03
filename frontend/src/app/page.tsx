@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import DashboardTab from '@/components/DashboardTab';
 import SipedeScraperTab from '@/components/SipedeScraperTab';
 import SppScraperTab from '@/components/SppScraperTab';
 
-type TabType = 'sipede' | 'spp';
+type TabType = 'dashboard' | 'sipede' | 'spp';
 
 export default function HomePage() {
-    const [activeTab, setActiveTab] = useState<TabType>('sipede');
+    const [activeTab, setActiveTab] = useState<TabType>('dashboard');
 
     return (
         <div className="app-container">
@@ -26,6 +27,18 @@ export default function HomePage() {
                     
                     {/* Tab Switcher */}
                     <div className="tab-switcher">
+                        <button 
+                            className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('dashboard')}
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <rect x="3" y="3" width="7" height="7" />
+                                <rect x="14" y="3" width="7" height="7" />
+                                <rect x="14" y="14" width="7" height="7" />
+                                <rect x="3" y="14" width="7" height="7" />
+                            </svg>
+                            Dashboard
+                        </button>
                         <button 
                             className={`tab-btn ${activeTab === 'sipede' ? 'active' : ''}`}
                             onClick={() => setActiveTab('sipede')}
@@ -53,6 +66,7 @@ export default function HomePage() {
 
             {/* Tab Content */}
             <main className="tab-content">
+                {activeTab === 'dashboard' && <DashboardTab />}
                 {activeTab === 'sipede' && <SipedeScraperTab />}
                 {activeTab === 'spp' && <SppScraperTab />}
             </main>
@@ -60,85 +74,85 @@ export default function HomePage() {
             <style jsx>{`
                 .app-container {
                     min-height: 100vh;
-                    background: linear-gradient(135deg, #f8fdf8 0%, #e8f5e8 50%, #f0faf0 100%);
-                    color: #1a3a1a;
+                    background: linear-gradient(135deg, #f8faf9 0%, #f0fdf4 50%, #ecfdf5 100%);
+                    color: #1e293b;
                 }
 
                 .app-header {
-                    background: rgba(255, 255, 255, 0.95);
-                    backdrop-filter: blur(10px);
-                    border-bottom: 1px solid #d4e7d4;
-                    padding: 1rem 2rem;
+                    background: linear-gradient(135deg, #064e3b, #065f46);
+                    padding: 0;
                     position: sticky;
                     top: 0;
                     z-index: 100;
-                    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.08);
+                    box-shadow: 0 4px 20px rgba(6, 78, 59, 0.25);
                 }
 
                 .header-content {
-                    max-width: 1200px;
+                    max-width: 1400px;
                     margin: 0 auto;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                     flex-wrap: wrap;
                     gap: 1rem;
+                    padding: 1rem 2rem;
                 }
 
                 .logo-section {
                     display: flex;
                     align-items: center;
-                    gap: 0.75rem;
+                    gap: 0.875rem;
                 }
 
                 .logo-icon {
-                    width: 32px;
-                    height: 32px;
-                    color: #16a34a;
+                    width: 36px;
+                    height: 36px;
+                    color: #10b981;
+                    background: rgba(255, 255, 255, 0.15);
+                    padding: 6px;
+                    border-radius: 10px;
                 }
 
                 .logo-section h1 {
                     font-size: 1.5rem;
                     font-weight: 700;
-                    background: linear-gradient(90deg, #16a34a, #059669);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
+                    color: white;
+                    letter-spacing: -0.5px;
                 }
 
                 .tab-switcher {
                     display: flex;
-                    gap: 0.5rem;
-                    background: #f0f9f0;
-                    padding: 0.25rem;
-                    border-radius: 12px;
-                    border: 1px solid #d4e7d4;
+                    gap: 0.375rem;
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 0.375rem;
+                    border-radius: 14px;
+                    backdrop-filter: blur(10px);
                 }
 
                 .tab-btn {
                     display: flex;
                     align-items: center;
                     gap: 0.5rem;
-                    padding: 0.625rem 1.25rem;
+                    padding: 0.75rem 1.5rem;
                     background: transparent;
                     border: none;
-                    border-radius: 8px;
-                    color: #6b8e6b;
-                    font-size: 0.875rem;
+                    border-radius: 10px;
+                    color: rgba(255, 255, 255, 0.7);
+                    font-size: 0.9rem;
                     font-weight: 500;
                     cursor: pointer;
-                    transition: all 0.3s;
+                    transition: all 0.25s ease;
                 }
 
                 .tab-btn:hover {
-                    color: #16a34a;
-                    background: rgba(22, 163, 74, 0.05);
+                    color: white;
+                    background: rgba(255, 255, 255, 0.1);
                 }
 
                 .tab-btn.active {
-                    background: linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(5, 150, 105, 0.15));
-                    color: #16a34a;
-                    border: 1px solid rgba(22, 163, 74, 0.3);
+                    background: white;
+                    color: #064e3b;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
                 }
 
                 .tab-btn svg {
@@ -147,7 +161,7 @@ export default function HomePage() {
                 }
 
                 .tab-content {
-                    max-width: 1200px;
+                    max-width: 1400px;
                     margin: 0 auto;
                 }
 
@@ -155,6 +169,7 @@ export default function HomePage() {
                     .header-content {
                         flex-direction: column;
                         align-items: flex-start;
+                        padding: 1rem;
                     }
 
                     .tab-switcher {
@@ -164,6 +179,13 @@ export default function HomePage() {
                     .tab-btn {
                         flex: 1;
                         justify-content: center;
+                        padding: 0.625rem 0.75rem;
+                        font-size: 0.8rem;
+                    }
+                    
+                    .tab-btn svg {
+                        width: 16px;
+                        height: 16px;
                     }
                 }
             `}</style>
