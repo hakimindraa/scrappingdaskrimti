@@ -771,6 +771,48 @@ export default function ScraperStyles() {
                 color: #065f46;
             }
 
+            /* New Scraping Button */
+            .new-scrape-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                margin-top: 1.25rem;
+                padding: 0.75rem 1.5rem;
+                background: linear-gradient(135deg, #064e3b, #065f46);
+                border: none;
+                border-radius: 10px;
+                color: #ffffff;
+                font-size: 0.9rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.25s;
+            }
+
+            .new-scrape-btn:hover:not(:disabled) {
+                background: linear-gradient(135deg, #065f46, #047857);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(6, 78, 59, 0.3);
+            }
+
+            .new-scrape-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            .new-scrape-btn.spp {
+                background: linear-gradient(135deg, #065f46, #047857);
+            }
+
+            .new-scrape-btn.spp:hover:not(:disabled) {
+                background: linear-gradient(135deg, #047857, #059669);
+            }
+
+            .new-scrape-btn svg {
+                width: 18px;
+                height: 18px;
+            }
+
             /* Data Toolbar */
             .data-toolbar {
                 display: flex;
@@ -966,6 +1008,260 @@ export default function ScraperStyles() {
                 to { transform: rotate(360deg); }
             }
 
+            /* Scraping History Section */
+            .scraping-history-section {
+                grid-column: 1;
+                background: linear-gradient(135deg, #ffffff 0%, #f8faf9 100%);
+            }
+
+            .scraping-history-section .section-header h2 {
+                display: flex;
+                align-items: center;
+                gap: 0.625rem;
+                font-size: 1.1rem;
+                font-weight: 700;
+                color: #1e293b;
+            }
+
+            .scraping-history-section .section-header h2 svg {
+                width: 20px;
+                height: 20px;
+                color: #10b981;
+            }
+
+            .scraping-history-list {
+                display: flex;
+                flex-direction: column;
+                gap: 0.875rem;
+                max-height: 420px;
+                overflow-y: auto;
+                padding: 0.25rem;
+                padding-right: 0.5rem;
+            }
+
+            .scraping-history-list::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            .scraping-history-list::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 3px;
+            }
+
+            .scraping-history-list::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 3px;
+            }
+
+            .scraping-history-list::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+
+            .history-item {
+                display: flex;
+                align-items: flex-start;
+                gap: 1rem;
+                padding: 1rem 1.25rem;
+                background: linear-gradient(135deg, #ffffff 0%, #f8faf9 100%);
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                transition: all 0.25s ease;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            }
+
+            .history-item:hover {
+                background: linear-gradient(135deg, #f8faf9 0%, #f1f5f9 100%);
+                border-color: #cbd5e1;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+                transform: translateY(-1px);
+            }
+
+            .history-item.success {
+                border-left: 4px solid #10b981;
+                background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+            }
+
+            .history-item.error {
+                border-left: 4px solid #ef4444;
+                background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+            }
+
+            .history-item.warning {
+                border-left: 4px solid #f59e0b;
+                background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+            }
+
+            .history-item.info {
+                border-left: 4px solid #3b82f6;
+                background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+            }
+
+            .history-icon {
+                width: 36px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 10px;
+                flex-shrink: 0;
+                font-size: 1rem;
+            }
+
+            .history-icon svg {
+                width: 18px;
+                height: 18px;
+            }
+
+            .history-item.success .history-icon {
+                background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+                color: #059669;
+                box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+            }
+
+            .history-item.error .history-icon {
+                background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+                color: #dc2626;
+                box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+            }
+
+            .history-item.warning .history-icon {
+                background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                color: #d97706;
+                box-shadow: 0 2px 6px rgba(245, 158, 11, 0.2);
+            }
+
+            .history-item.info .history-icon {
+                background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+                color: #2563eb;
+                box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+            }
+
+            .history-content {
+                flex: 1;
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .history-message {
+                font-size: 0.9rem;
+                color: #1e293b;
+                font-weight: 600;
+                line-height: 1.5;
+                letter-spacing: -0.01em;
+            }
+
+            .history-meta {
+                display: flex;
+                align-items: center;
+                gap: 0.625rem;
+                font-size: 0.8rem;
+                color: #64748b;
+            }
+
+            .history-source {
+                font-weight: 600;
+                color: #047857;
+                background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+                padding: 0.25rem 0.625rem;
+                border-radius: 6px;
+                font-size: 0.75rem;
+                letter-spacing: 0.02em;
+            }
+
+            .history-meta .history-separator {
+                width: 4px;
+                height: 4px;
+                background: #cbd5e1;
+                border-radius: 50%;
+            }
+
+            .history-time {
+                color: #94a3b8;
+                font-size: 0.8rem;
+                display: flex;
+                align-items: center;
+                gap: 0.375rem;
+            }
+
+            .history-time::before {
+                content: '•';
+                color: #cbd5e1;
+                font-size: 0.5rem;
+            }
+
+            .empty-history {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 3rem 2rem;
+                text-align: center;
+                color: #94a3b8;
+                background: linear-gradient(135deg, #f8faf9 0%, #f1f5f9 100%);
+                border-radius: 12px;
+                border: 2px dashed #e2e8f0;
+            }
+
+            .empty-history .empty-icon {
+                width: 48px;
+                height: 48px;
+                margin-bottom: 1rem;
+                opacity: 0.5;
+                flex-shrink: 0;
+            }
+
+            .empty-history span {
+                font-size: 1rem;
+                font-weight: 600;
+                color: #64748b;
+                margin-bottom: 0.25rem;
+            }
+
+            .empty-history p {
+                font-size: 0.85rem;
+                color: #94a3b8;
+            }
+
+            .clear-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.5rem 1rem;
+                background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+                border: 1px solid rgba(239, 68, 68, 0.25);
+                border-radius: 8px;
+                color: #dc2626;
+                font-size: 0.8rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.25s ease;
+                box-shadow: 0 1px 3px rgba(239, 68, 68, 0.1);
+            }
+
+            .clear-btn:hover {
+                background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+                border-color: rgba(239, 68, 68, 0.4);
+                box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+                transform: translateY(-1px);
+            }
+
+            .clear-btn svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            .clear-btn:hover {
+                background: rgba(239, 68, 68, 0.15);
+                border-color: rgba(239, 68, 68, 0.3);
+            }
+
+            .clear-btn svg {
+                width: 16px;
+                height: 16px;
+            }
+
             @media (max-width: 768px) {
                 .scraper-tab {
                     padding: 1rem;
@@ -1001,6 +1297,44 @@ export default function ScraperStyles() {
 
                 .card {
                     padding: 1.5rem;
+                }
+
+                .scraping-history-list {
+                    max-height: 300px;
+                }
+
+                .history-item {
+                    padding: 0.875rem 1rem;
+                    gap: 0.75rem;
+                }
+
+                .history-icon {
+                    width: 32px;
+                    height: 32px;
+                }
+
+                .history-icon svg {
+                    width: 16px;
+                    height: 16px;
+                }
+
+                .history-message {
+                    font-size: 0.85rem;
+                }
+
+                .history-meta {
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+
+                .history-source {
+                    font-size: 0.7rem;
+                }
+
+                .history-time {
+                    font-size: 0.75rem;
+                }
+                    gap: 0.5rem;
                 }
             }
         `}</style>

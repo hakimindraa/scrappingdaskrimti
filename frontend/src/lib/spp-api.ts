@@ -1,4 +1,4 @@
-// SPP Scraper API Types & Functions
+// SPDP Scraper API Types & Functions
 
 export interface PaginationInfo {
     totalEntries: number;
@@ -138,4 +138,26 @@ export function getExportCsvUrl(): string {
 
 export function getExportJsonUrl(): string {
     return `${SPP_API_URL}/api/scraper/export/json`;
+}
+
+export function getExportExcelUrl(): string {
+    return `${SPP_API_URL}/api/scraper/export/excel`;
+}
+
+// ============================================
+// Data Info Types & Functions
+// ============================================
+
+export interface DataInfo {
+    success: boolean;
+    exists: boolean;
+    row_count: number;
+    pages_scraped: number;
+    scraped_at?: string;
+    updated_at?: string;
+}
+
+export async function getDataInfo(): Promise<DataInfo> {
+    const response = await fetch(`${SPP_API_URL}/api/scraper/data-info`);
+    return response.json();
 }

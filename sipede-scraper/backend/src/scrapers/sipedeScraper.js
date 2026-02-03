@@ -42,11 +42,11 @@ class SipedeScraper {
         try {
             // Check if running in production (Railway) - use headless mode
             const isProduction = process.env.NODE_ENV === 'production';
-            
+
             // Launch browser (headless in production, visible in development)
             this.browser = await chromium.launch({
                 headless: isProduction,
-                args: isProduction 
+                args: isProduction
                     ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
                     : ['--start-maximized']
             });
@@ -93,31 +93,31 @@ class SipedeScraper {
             // Check if still on login page
             this.currentUrl = this.page.url();
             if (this.currentUrl.includes('/login')) {
-                return { 
-                    success: false, 
+                return {
+                    success: false,
                     message: 'Please login first. Waiting for login...',
-                    isLoggedIn: false 
+                    isLoggedIn: false
                 };
             }
 
             // User is logged in, navigate to data page
             console.log('User logged in, navigating to data page:', this.targetDataUrl);
-            
+
             try {
                 // Navigate to target data URL
-                await this.page.goto(this.targetDataUrl, { 
+                await this.page.goto(this.targetDataUrl, {
                     waitUntil: 'domcontentloaded',
-                    timeout: 60000 
+                    timeout: 60000
                 });
-                
+
                 // Wait for page to stabilize
                 await this.page.waitForTimeout(3000);
-                
+
                 // Wait for network to be idle
                 await this.page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
                     console.log('Network idle timeout, continuing anyway...');
                 });
-                
+
             } catch (navError) {
                 console.log('Navigation error, trying alternative approach:', navError.message);
                 // Try clicking menu/link if direct navigation fails
@@ -140,7 +140,7 @@ class SipedeScraper {
                     console.log('Alternative navigation also failed:', e.message);
                 }
             }
-            
+
             // Wait for table to appear (indicates data page loaded)
             try {
                 await this.page.waitForSelector('table', { timeout: 15000 });
@@ -149,13 +149,13 @@ class SipedeScraper {
                 console.log('Table not found immediately, waiting more...');
                 await this.page.waitForTimeout(3000);
             }
-            
+
             this.currentUrl = this.page.url();
             console.log('Current URL after navigation:', this.currentUrl);
 
             // Detect available years after navigation
             const yearsResult = await this.detectAvailableYears();
-            
+
             return {
                 success: true,
                 message: 'Navigated to data page successfully',
@@ -185,23 +185,23 @@ class SipedeScraper {
             const yearsInfo = await this.page.evaluate(() => {
                 // Find year filter dropdown - look for select with year options
                 const selects = document.querySelectorAll('select');
-                
+
                 for (const select of selects) {
                     const name = (select.name || select.id || '').toLowerCase();
                     const options = Array.from(select.options);
-                    
+
                     // Check if this looks like a year filter
                     const hasYearOptions = options.some(opt => /^\d{4}$/.test(opt.value) || /^\d{4}$/.test(opt.text));
                     const isYearByName = name.includes('tahun') || name.includes('year');
-                    
+
                     if (hasYearOptions || isYearByName) {
                         const years = options
                             .map(opt => opt.value || opt.text)
                             .filter(val => /^\d{4}$/.test(val));
-                        
+
                         const selectedOption = select.options[select.selectedIndex];
                         const selectedYear = selectedOption ? (selectedOption.value || selectedOption.text) : null;
-                        
+
                         return {
                             success: true,
                             years: years,
@@ -210,13 +210,13 @@ class SipedeScraper {
                         };
                     }
                 }
-                
+
                 return { success: false, years: [], selectedYear: null };
             });
 
             this.availableYears = yearsInfo.years || [];
             this.selectedYear = yearsInfo.selectedYear;
-            
+
             return yearsInfo;
         } catch (error) {
             console.error('Error detecting years:', error);
@@ -234,18 +234,18 @@ class SipedeScraper {
             }
 
             console.log(`Changing year filter to: ${year}`);
-            
+
             // First make sure we're on the correct page
             this.currentUrl = this.page.url();
             if (!this.currentUrl.includes('suratterkirim') && !this.currentUrl.includes('type=terkirim')) {
                 console.log('Not on data page, navigating first...');
                 try {
-                    await this.page.goto(this.targetDataUrl, { 
+                    await this.page.goto(this.targetDataUrl, {
                         waitUntil: 'domcontentloaded',
-                        timeout: 30000 
+                        timeout: 30000
                     });
                     await this.page.waitForTimeout(2000);
-                    await this.page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+                    await this.page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => { });
                 } catch (e) {
                     console.log('Navigation error:', e.message);
                 }
@@ -256,14 +256,14 @@ class SipedeScraper {
 
             const result = await this.page.evaluate((targetYear) => {
                 const selects = document.querySelectorAll('select');
-                
+
                 for (const select of selects) {
                     const name = (select.name || select.id || '').toLowerCase();
                     const options = Array.from(select.options);
-                    
+
                     const hasYearOptions = options.some(opt => /^\d{4}$/.test(opt.value) || /^\d{4}$/.test(opt.text));
                     const isYearByName = name.includes('tahun') || name.includes('year');
-                    
+
                     if (hasYearOptions || isYearByName) {
                         // Find the option with matching year
                         for (let i = 0; i < select.options.length; i++) {
@@ -278,7 +278,7 @@ class SipedeScraper {
                         return { success: false, message: `Year ${targetYear} not found in dropdown` };
                     }
                 }
-                
+
                 return { success: false, message: 'Year filter dropdown not found' };
             }, year);
 
@@ -286,7 +286,7 @@ class SipedeScraper {
                 // Wait for page to reload/update after year change
                 await this.page.waitForLoadState('networkidle');
                 await this.page.waitForTimeout(2000);
-                
+
                 this.selectedYear = year;
                 this.currentUrl = this.page.url();
             }
@@ -315,20 +315,20 @@ class SipedeScraper {
             const result = await this.page.evaluate((targetEntries) => {
                 // Find the entries per page dropdown (usually has options 10, 25, 50, 100)
                 const selects = document.querySelectorAll('select');
-                
+
                 for (const select of selects) {
                     const options = Array.from(select.options);
-                    
+
                     // Check if this looks like entries per page selector
-                    const hasEntriesOptions = options.some(opt => 
-                        ['10', '25', '50', '100'].includes(opt.value) || 
+                    const hasEntriesOptions = options.some(opt =>
+                        ['10', '25', '50', '100'].includes(opt.value) ||
                         ['10', '25', '50', '100'].includes(opt.text.trim())
                     );
-                    
+
                     // Also check by name/id
                     const name = (select.name || select.id || '').toLowerCase();
                     const isEntriesByName = name.includes('length') || name.includes('entries') || name.includes('pagesize') || name.includes('perpage');
-                    
+
                     if (hasEntriesOptions || isEntriesByName) {
                         // Find the option with target value
                         for (let i = 0; i < select.options.length; i++) {
@@ -339,7 +339,7 @@ class SipedeScraper {
                                 return { success: true, entriesPerPage: targetEntries };
                             }
                         }
-                        
+
                         // If exact value not found, try the highest available
                         const availableValues = options.map(o => parseInt(o.value)).filter(v => !isNaN(v));
                         if (availableValues.length > 0) {
@@ -354,7 +354,7 @@ class SipedeScraper {
                         }
                     }
                 }
-                
+
                 return { success: false, message: 'Entries per page dropdown not found' };
             }, entries);
 
@@ -571,7 +571,7 @@ class SipedeScraper {
                     const paginationLinks = document.querySelectorAll('.pagination a, .pagination li, .paginate_button');
                     let maxPage = 1;
                     const pageNumbers = [];
-                    
+
                     paginationLinks.forEach(link => {
                         const text = link.textContent.trim();
                         const num = parseInt(text);
@@ -581,7 +581,7 @@ class SipedeScraper {
                             pageNumbers.push(num);
                         }
                     });
-                    
+
                     if (pageNumbers.length > 0) {
                         maxPage = Math.max(...pageNumbers);
                         totalPages = maxPage;
@@ -644,17 +644,17 @@ class SipedeScraper {
             // First check current URL and navigate if needed
             this.currentUrl = this.page.url();
             console.log('[detectTableStructure] Current URL:', this.currentUrl);
-            
+
             // If not on the target data page, navigate there
             if (!this.currentUrl.includes('suratterkirim') && !this.currentUrl.includes('type=terkirim')) {
                 console.log('[detectTableStructure] Not on data page, navigating...');
                 try {
-                    await this.page.goto(this.targetDataUrl, { 
+                    await this.page.goto(this.targetDataUrl, {
                         waitUntil: 'domcontentloaded',
-                        timeout: 30000 
+                        timeout: 30000
                     });
                     await this.page.waitForTimeout(3000);
-                    await this.page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+                    await this.page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => { });
                     this.currentUrl = this.page.url();
                     console.log('[detectTableStructure] Navigated to:', this.currentUrl);
                 } catch (navErr) {
@@ -674,8 +674,8 @@ class SipedeScraper {
                 if (!hasTable) {
                     // Take screenshot for debugging
                     console.log('[detectTableStructure] No table found on page');
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         message: 'No table found on page. Please make sure you are on the correct data page.',
                         currentUrl: this.currentUrl
                     };
@@ -846,9 +846,9 @@ class SipedeScraper {
             const currentPageInfo = await this.detectPagination();
             const currentPage = currentPageInfo.currentPage || 1;
             const nextPageNum = currentPage + 1;
-            
+
             console.log(`[DEBUG] Current page: ${currentPage}, trying to go to page ${nextPageNum}`);
-            
+
             // Update status: navigating to next page
             this.updateStatus('navigating', `Pindah ke halaman ${nextPageNum}...`, currentPage);
 
@@ -865,10 +865,10 @@ class SipedeScraper {
                 while (Date.now() - startTime < maxWaitTime) {
                     await this.page.waitForTimeout(1000);
                     elapsed = Math.round((Date.now() - startTime) / 1000);
-                    
+
                     // Update status with elapsed time
                     this.updateStatus('waiting', `Menunggu halaman ${nextPageNum} dimuat... (${elapsed}s)`, currentPage);
-                    
+
                     const newFirstRow = await this.page.evaluate(() => {
                         const firstRow = document.querySelector('table tbody tr');
                         return firstRow ? firstRow.textContent.substring(0, 100) : '';
@@ -896,12 +896,12 @@ class SipedeScraper {
 
             if (clickedPageNumber) {
                 console.log(`[DEBUG] Clicked page number ${nextPageNum} directly, waiting for load...`);
-                
+
                 // Wait for network with longer timeout
                 await this.page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
                     console.log('[DEBUG] Network idle timeout, checking if page changed anyway...');
                 });
-                
+
                 // Wait for page content to change
                 if (await waitForPageChange(15000)) {
                     console.log('[DEBUG] Navigation successful via page number click');
@@ -924,13 +924,13 @@ class SipedeScraper {
                     const nextBtn = await this.page.$(selector);
                     if (nextBtn) {
                         const buttonText = await nextBtn.evaluate(el => el.textContent.trim());
-                        
+
                         // Skip last page buttons
                         if (buttonText === '»' || buttonText === '>>' || buttonText === '»»') {
                             console.log(`[DEBUG] Skipping last page button: ${buttonText}`);
                             continue;
                         }
-                        
+
                         const isVisible = await nextBtn.isVisible();
                         if (!isVisible) continue;
 
@@ -944,12 +944,12 @@ class SipedeScraper {
                         if (!isDisabled) {
                             console.log(`[DEBUG] Clicking next with selector: ${selector}, text: ${buttonText}`);
                             await nextBtn.click();
-                            
+
                             // Wait for network with longer timeout
                             await this.page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
                                 console.log('[DEBUG] Network idle timeout, checking if page changed anyway...');
                             });
-                            
+
                             // Wait for page content to change
                             if (await waitForPageChange(15000)) {
                                 console.log('[DEBUG] Navigation successful via selector');
@@ -969,7 +969,7 @@ class SipedeScraper {
                     const text = link.textContent.trim();
                     if (text === '>' || text === '›' || text.toLowerCase() === 'next') {
                         const parent = link.parentElement;
-                        if (!link.classList.contains('disabled') && 
+                        if (!link.classList.contains('disabled') &&
                             !parent?.classList.contains('disabled')) {
                             link.click();
                             return text;
@@ -981,11 +981,11 @@ class SipedeScraper {
 
             if (clickedSingleArrow) {
                 console.log(`[DEBUG] Clicked single arrow: ${clickedSingleArrow}, waiting for load...`);
-                
+
                 await this.page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
                     console.log('[DEBUG] Network idle timeout, checking if page changed anyway...');
                 });
-                
+
                 if (await waitForPageChange(15000)) {
                     console.log('[DEBUG] Navigation successful via arrow click');
                     return true;
@@ -1018,7 +1018,7 @@ class SipedeScraper {
             // Try to click the page number directly
             const clicked = await this.page.evaluate((targetPage) => {
                 const pageStr = String(targetPage);
-                
+
                 const selectors = [
                     '.pagination a',
                     '.pagination li a',
@@ -1026,14 +1026,14 @@ class SipedeScraper {
                     'a.page-link',
                     'ul.pagination li a'
                 ];
-                
+
                 for (const selector of selectors) {
                     const links = document.querySelectorAll(selector);
                     for (const link of links) {
                         const text = link.textContent.trim();
                         if (text === pageStr) {
                             const parent = link.parentElement;
-                            if (!link.classList.contains('disabled') && 
+                            if (!link.classList.contains('disabled') &&
                                 !parent?.classList.contains('disabled') &&
                                 !link.classList.contains('active') &&
                                 !parent?.classList.contains('active')) {
@@ -1048,29 +1048,29 @@ class SipedeScraper {
 
             if (clicked) {
                 console.log(`[DEBUG] Clicked page ${pageNumber}, waiting for load...`);
-                
+
                 // Wait for network with longer timeout
                 await this.page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
                     console.log('[DEBUG] Network idle timeout, checking if page changed anyway...');
                 });
-                
+
                 // Wait for page content to change with polling
                 const startTime = Date.now();
                 const maxWaitTime = 15000;
-                
+
                 while (Date.now() - startTime < maxWaitTime) {
                     await this.page.waitForTimeout(1000);
                     const newFirstRow = await this.page.evaluate(() => {
                         const firstRow = document.querySelector('table tbody tr');
                         return firstRow ? firstRow.textContent.substring(0, 100) : '';
                     });
-                    
+
                     if (newFirstRow !== oldFirstRow) {
                         console.log(`[DEBUG] Successfully navigated to page ${pageNumber} after ${Date.now() - startTime}ms`);
                         return true;
                     }
                 }
-                
+
                 console.log(`[DEBUG] Page ${pageNumber} clicked but content did not change after ${maxWaitTime}ms`);
             }
 
@@ -1095,23 +1095,23 @@ class SipedeScraper {
         try {
             // Note: entries per page should be set by user from frontend dropdown
             // Don't auto-set here anymore
-            
+
             // Wait for table to be ready
             await this.page.waitForTimeout(1000);
 
             // Get pagination info first
             const paginationInfo = await this.detectPagination();
             let totalPages = paginationInfo.totalPages || 1;
-            
+
             // Sanity check: total pages should be reasonable (< 1000)
             if (totalPages > 1000) {
                 console.log(`[WARNING] Total pages (${totalPages}) seems too high, capping at 1000`);
                 totalPages = 1000;
             }
-            
+
             console.log(`[INFO] Starting scrape: estimated ${totalPages} pages, ${paginationInfo.totalEntries || 'unknown'} entries`);
             console.log(`[INFO] Entries per page: ${paginationInfo.entriesPerPage || 'unknown'}`);
-            
+
             // Update status: starting
             this.updateStatus('scraping', `Memulai scraping ${totalPages} halaman...`, 0);
 
@@ -1123,12 +1123,12 @@ class SipedeScraper {
                 // Verify current page number from DOM
                 const currentPaginationInfo = await this.detectPagination();
                 const actualPage = currentPaginationInfo.currentPage || pageNum;
-                
+
                 console.log(`[INFO] Scraping page ${pageNum} (DOM says: ${actualPage}) of ${totalPages}...`);
-                
+
                 // Update status: scraping current page
                 this.updateStatus('scraping', `Mengambil data halaman ${pageNum} dari ${totalPages}...`, pageNum);
-                
+
                 const pageData = await this.scrapeCurrentPage();
 
                 if (pageData.length === 0) {
@@ -1146,12 +1146,12 @@ class SipedeScraper {
                             newRows++;
                         }
                     }
-                    
+
                     console.log(`[INFO] Page ${pageNum}: ${pageData.length} rows, ${newRows} new (total: ${allData.length})`);
-                    
+
                     // Update status with current data count
                     this.updateStatus('scraping', `Halaman ${pageNum}: ${newRows} data baru (total: ${allData.length})`, pageNum);
-                    
+
                     if (newRows === 0) {
                         consecutiveFailures++;
                         console.log(`[WARNING] All rows were duplicates!`);
@@ -1177,12 +1177,12 @@ class SipedeScraper {
 
                 // Try to go to next page with extra wait time for slow SIPEDE server
                 console.log(`[INFO] Attempting to navigate to page ${pageNum + 1}...`);
-                
+
                 // Wait a bit before trying to navigate (SIPEDE is slow)
                 await this.page.waitForTimeout(2000);
-                
+
                 hasMore = await this.goToNextPage();
-                
+
                 if (hasMore) {
                     pageNum++;
                     noProgressCount = 0;
@@ -1192,7 +1192,7 @@ class SipedeScraper {
                     // First retry: wait longer and try again
                     console.log(`[INFO] First navigation attempt failed, waiting and retrying...`);
                     await this.page.waitForTimeout(5000);
-                    
+
                     // Double check - maybe we can still go to next page by clicking page number directly
                     const retryResult = await this.goToPageNumber(pageNum + 1);
                     if (retryResult) {

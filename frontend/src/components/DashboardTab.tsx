@@ -3,10 +3,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as sipedeApi from '@/lib/sipede-api';
 import * as sppApi from '@/lib/spp-api';
+import {
+    ClipboardDocumentListIcon,
+    ChartBarIcon,
+    ExclamationTriangleIcon,
+    BoltIcon,
+    CheckIcon,
+    ClockIcon,
+    InboxArrowDownIcon,
+    KeyIcon,
+    LightBulbIcon,
+    PlayCircleIcon,
+    PauseCircleIcon,
+    XMarkIcon,
+    InformationCircleIcon,
+} from '@heroicons/react/24/outline';
 
 interface SourceStats {
     name: string;
-    icon: string;
+    icon: React.ReactNode;
     dataCount: number;
     pagesScraped: number;
     totalPages: number;
@@ -17,6 +32,8 @@ interface SourceStats {
     error: string | null;
     exportCsvUrl: string;
     exportJsonUrl: string;
+    exportExcelUrl: string;
+    lastScrapedAt: string | null;
 }
 
 interface ServerStatus {
@@ -38,7 +55,7 @@ interface ActivityLog {
     type: 'info' | 'success' | 'warning' | 'error';
     message: string;
     source: string;
-    time: Date;
+    createdAt: string;
 }
 
 export default function DashboardTab() {
@@ -55,15 +72,37 @@ export default function DashboardTab() {
     const [showNotification, setShowNotification] = useState(false);
     const [notificationMessage, setNotificationMessage] = useState('');
 
-    // Add activity log
-    const addLog = useCallback((type: ActivityLog['type'], message: string, source: string) => {
-        setActivityLogs(prev => [{
-            id: Date.now(),
-            type,
-            message,
-            source,
-            time: new Date()
-        }, ...prev].slice(0, 20));
+    // Add activity log (now calls backend API)
+    const addLog = useCallback(async (type: ActivityLog['type'], message: string, source: string) => {
+        try {
+            await sipedeApi.addActivityLog(type, message, source);
+            // Refresh logs after adding
+            fetchActivityLogs();
+        } catch (error) {
+            console.error('Failed to add log:', error);
+        }
+    }, []);
+
+    // Fetch activity logs from backend
+    const fetchActivityLogs = useCallback(async () => {
+        try {
+            const response = await sipedeApi.getActivityLogs(30);
+            if (response.success) {
+                setActivityLogs(response.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch activity logs:', error);
+        }
+    }, []);
+
+    // Clear activity logs (calls backend API)
+    const clearActivityLogs = useCallback(async () => {
+        try {
+            await sipedeApi.clearActivityLogs();
+            setActivityLogs([]);
+        } catch (error) {
+            console.error('Failed to clear logs:', error);
+        }
     }, []);
 
     // Show notification
@@ -76,7 +115,7 @@ export default function DashboardTab() {
     const checkServerStatus = async (name: string, url: string): Promise<ServerStatus> => {
         const startTime = Date.now();
         try {
-            const response = await fetch(`${url}/api/scraper/status`, { 
+            const response = await fetch(`${url}/api/scraper/status`, {
                 method: 'GET',
                 signal: AbortSignal.timeout(5000)
             });
@@ -111,16 +150,23 @@ export default function DashboardTab() {
             const sources: SourceStats[] = [];
             const [sipedeServer, sppServer] = await Promise.all([
                 checkServerStatus('SIPEDE', process.env.NEXT_PUBLIC_SIPEDE_API_URL || 'http://localhost:5000'),
-                checkServerStatus('SPP', process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001')
+                checkServerStatus('SPDP', process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001')
             ]);
 
             // SIPEDE
+            let sipedeLastScraped: string | null = null;
             try {
                 if (sipedeServer.isOnline) {
-                    const status = await sipedeApi.getStatus();
+                    const [status, dataInfo] = await Promise.all([
+                        sipedeApi.getStatus(),
+                        sipedeApi.getDataInfo()
+                    ]);
+                    if (dataInfo.success && dataInfo.scrapedAt) {
+                        sipedeLastScraped = dataInfo.scrapedAt;
+                    }
                     if (status.success) {
                         const prevSource = data.sources.find(s => s.name === 'SIPEDE');
-                        
+
                         // Log activity if status changed
                         if (prevSource) {
                             if (!prevSource.isRunning && status.data.isRunning) {
@@ -132,7 +178,7 @@ export default function DashboardTab() {
 
                         sources.push({
                             name: 'SIPEDE',
-                            icon: '📋',
+                            icon: <ClipboardDocumentListIcon className="w-5 h-5" />,
                             dataCount: status.data.dataCount || 0,
                             pagesScraped: status.data.pagesScraped || 0,
                             totalPages: status.data.tableInfo?.pagination?.totalPages || 0,
@@ -142,44 +188,55 @@ export default function DashboardTab() {
                             elapsedTime: status.data.elapsedTime || 0,
                             error: status.data.error || null,
                             exportCsvUrl: sipedeApi.getExportCsvUrl(),
-                            exportJsonUrl: sipedeApi.getExportJsonUrl()
+                            exportJsonUrl: sipedeApi.getExportJsonUrl(),
+                            exportExcelUrl: sipedeApi.getExportExcelUrl(),
+                            lastScrapedAt: sipedeLastScraped
                         });
                     }
                 } else {
                     sources.push({
-                        name: 'SIPEDE', icon: '📋', dataCount: 0, pagesScraped: 0, totalPages: 0,
+                        name: 'SIPEDE', icon: <ClipboardDocumentListIcon className="w-5 h-5" />, dataCount: 0, pagesScraped: 0, totalPages: 0,
                         browserOpen: false, isRunning: false, isLoggedIn: false, elapsedTime: 0,
                         error: 'Server offline', exportCsvUrl: sipedeApi.getExportCsvUrl(),
-                        exportJsonUrl: sipedeApi.getExportJsonUrl()
+                        exportJsonUrl: sipedeApi.getExportJsonUrl(), exportExcelUrl: sipedeApi.getExportExcelUrl(),
+                        lastScrapedAt: null
                     });
                 }
             } catch {
                 sources.push({
-                    name: 'SIPEDE', icon: '📋', dataCount: 0, pagesScraped: 0, totalPages: 0,
+                    name: 'SIPEDE', icon: <ClipboardDocumentListIcon className="w-5 h-5" />, dataCount: 0, pagesScraped: 0, totalPages: 0,
                     browserOpen: false, isRunning: false, isLoggedIn: false, elapsedTime: 0,
                     error: 'Connection failed', exportCsvUrl: sipedeApi.getExportCsvUrl(),
-                    exportJsonUrl: sipedeApi.getExportJsonUrl()
+                    exportJsonUrl: sipedeApi.getExportJsonUrl(), exportExcelUrl: sipedeApi.getExportExcelUrl(),
+                    lastScrapedAt: null
                 });
             }
 
-            // SPP
+            // SPDP
+            let spdpLastScraped: string | null = null;
             try {
                 if (sppServer.isOnline) {
-                    const status = await sppApi.getStatus();
+                    const [status, dataInfo] = await Promise.all([
+                        sppApi.getStatus(),
+                        sppApi.getDataInfo()
+                    ]);
+                    if (dataInfo.success && dataInfo.scraped_at) {
+                        spdpLastScraped = dataInfo.scraped_at;
+                    }
                     if (status.success) {
-                        const prevSource = data.sources.find(s => s.name === 'SPP');
-                        
+                        const prevSource = data.sources.find(s => s.name === 'SPDP');
+
                         if (prevSource) {
                             if (!prevSource.isRunning && status.data.isRunning) {
-                                addLog('info', 'Scraping dimulai', 'SPP');
+                                addLog('info', 'Scraping dimulai', 'SPDP');
                             } else if (prevSource.isRunning && !status.data.isRunning && status.data.dataCount > 0) {
-                                addLog('success', `Scraping selesai - ${status.data.dataCount} data`, 'SPP');
+                                addLog('success', `Scraping selesai - ${status.data.dataCount} data`, 'SPDP');
                             }
                         }
 
                         sources.push({
-                            name: 'SPP',
-                            icon: '📊',
+                            name: 'SPDP',
+                            icon: <ChartBarIcon className="w-5 h-5" />,
                             dataCount: status.data.dataCount || 0,
                             pagesScraped: status.data.pagesScraped || 0,
                             totalPages: status.data.tableInfo?.pagination?.totalPages || 0,
@@ -189,23 +246,27 @@ export default function DashboardTab() {
                             elapsedTime: status.data.elapsedTime || 0,
                             error: null,
                             exportCsvUrl: sppApi.getExportCsvUrl(),
-                            exportJsonUrl: sppApi.getExportJsonUrl()
+                            exportJsonUrl: sppApi.getExportJsonUrl(),
+                            exportExcelUrl: sppApi.getExportExcelUrl(),
+                            lastScrapedAt: spdpLastScraped
                         });
                     }
                 } else {
                     sources.push({
-                        name: 'SPP', icon: '📊', dataCount: 0, pagesScraped: 0, totalPages: 0,
+                        name: 'SPDP', icon: <ChartBarIcon className="w-5 h-5" />, dataCount: 0, pagesScraped: 0, totalPages: 0,
                         browserOpen: false, isRunning: false, isLoggedIn: false, elapsedTime: 0,
                         error: 'Server offline', exportCsvUrl: sppApi.getExportCsvUrl(),
-                        exportJsonUrl: sppApi.getExportJsonUrl()
+                        exportJsonUrl: sppApi.getExportJsonUrl(), exportExcelUrl: sppApi.getExportExcelUrl(),
+                        lastScrapedAt: null
                     });
                 }
             } catch {
                 sources.push({
-                    name: 'SPP', icon: '📊', dataCount: 0, pagesScraped: 0, totalPages: 0,
+                    name: 'SPDP', icon: <ChartBarIcon className="w-5 h-5" />, dataCount: 0, pagesScraped: 0, totalPages: 0,
                     browserOpen: false, isRunning: false, isLoggedIn: false, elapsedTime: 0,
                     error: 'Connection failed', exportCsvUrl: sppApi.getExportCsvUrl(),
-                    exportJsonUrl: sppApi.getExportJsonUrl()
+                    exportJsonUrl: sppApi.getExportJsonUrl(), exportExcelUrl: sppApi.getExportExcelUrl(),
+                    lastScrapedAt: null
                 });
             }
 
@@ -225,44 +286,119 @@ export default function DashboardTab() {
 
     useEffect(() => {
         fetchDashboardData();
+        fetchActivityLogs(); // Fetch activity logs on mount
         let interval: NodeJS.Timeout | null = null;
         if (autoRefresh) {
-            interval = setInterval(fetchDashboardData, 3000);
+            interval = setInterval(() => {
+                fetchDashboardData();
+                fetchActivityLogs();
+            }, 3000);
         }
         return () => { if (interval) clearInterval(interval); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoRefresh]);
 
-    const handleExport = (source: SourceStats, type: 'csv' | 'json') => {
-        window.open(type === 'csv' ? source.exportCsvUrl : source.exportJsonUrl, '_blank');
-        addLog('success', `Export ${type.toUpperCase()} - ${source.dataCount} data`, source.name);
+    const handleExport = async (source: SourceStats, type: 'excel' | 'csv' | 'json') => {
+        let url = source.exportJsonUrl;
+        if (type === 'excel') url = source.exportExcelUrl;
+        else if (type === 'csv') url = source.exportCsvUrl;
+
+        window.open(url, '_blank');
+        await addLog('success', `Data di-export ke ${type.toUpperCase()} (${source.dataCount.toLocaleString()} records)`, source.name);
         notify(`${source.name} berhasil di-export ke ${type.toUpperCase()}`);
     };
 
-    const getStatus = (source: SourceStats) => {
-        if (source.error) return { text: 'Error', class: 'error', icon: '⚠️' };
-        if (source.isRunning) return { text: 'Scraping', class: 'running', icon: '⚡' };
-        if (source.browserOpen && source.isLoggedIn) return { text: 'Ready', class: 'ready', icon: '✓' };
-        if (source.browserOpen) return { text: 'Waiting Login', class: 'waiting', icon: '⏳' };
-        if (source.dataCount > 0) return { text: 'Completed', class: 'completed', icon: '✓' };
-        return { text: 'Offline', class: 'offline', icon: '○' };
+    const getStatus = (source: SourceStats): { text: string; class: string; icon: React.ReactNode } => {
+        if (source.error) return { text: 'Error', class: 'error', icon: <ExclamationTriangleIcon className="w-4 h-4" /> };
+        if (source.isRunning) return { text: 'Scraping', class: 'running', icon: <BoltIcon className="w-4 h-4" /> };
+        if (source.browserOpen && source.isLoggedIn) return { text: 'Ready', class: 'ready', icon: <CheckIcon className="w-4 h-4" /> };
+        if (source.browserOpen) return { text: 'Waiting Login', class: 'waiting', icon: <ClockIcon className="w-4 h-4" /> };
+        if (source.dataCount > 0) return { text: 'Completed', class: 'completed', icon: <CheckIcon className="w-4 h-4" /> };
+        return { text: 'Offline', class: 'offline', icon: <XMarkIcon className="w-4 h-4" /> };
     };
 
-    const getLogIcon = (type: ActivityLog['type']) => {
+    const getLogIcon = (type: ActivityLog['type']): React.ReactNode => {
         switch (type) {
-            case 'success': return '✓';
-            case 'error': return '✕';
-            case 'warning': return '⚠';
-            default: return 'ℹ';
+            case 'success': return <CheckIcon className="w-4 h-4" />;
+            case 'error': return <XMarkIcon className="w-4 h-4" />;
+            case 'warning': return <ExclamationTriangleIcon className="w-4 h-4" />;
+            default: return <InformationCircleIcon className="w-4 h-4" />;
         }
     };
+
+    // Generate dynamic tips based on current state
+    const getDynamicTips = useCallback(() => {
+        const tips: { icon: React.ReactNode; text: React.ReactNode; priority: number }[] = [];
+
+        // Check for offline servers
+        const offlineServers = data.servers.filter(s => !s.isOnline);
+        if (offlineServers.length > 0) {
+            tips.push({
+                icon: <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500" />,
+                text: <>Server <strong>{offlineServers.map(s => s.name).join(', ')}</strong> offline. Pastikan backend berjalan.</>,
+                priority: 1
+            });
+        }
+
+        // Check for active scraping
+        const activeSources = data.sources.filter(s => s.isRunning);
+        if (activeSources.length > 0) {
+            tips.push({
+                icon: <BoltIcon className="w-5 h-5 text-blue-500" />,
+                text: <>Scraping <strong>{activeSources.map(s => s.name).join(', ')}</strong> sedang berjalan. Jangan tutup browser.</>,
+                priority: 2
+            });
+        }
+
+        // Check for data ready to export
+        const readyToExport = data.sources.filter(s => s.dataCount > 0 && !s.isRunning);
+        if (readyToExport.length > 0) {
+            const totalData = readyToExport.reduce((sum, s) => sum + s.dataCount, 0);
+            tips.push({
+                icon: <InboxArrowDownIcon className="w-5 h-5 text-green-500" />,
+                text: <><strong>{totalData.toLocaleString()}</strong> data siap di-export ke Excel atau JSON</>,
+                priority: 3
+            });
+        }
+
+        // Check for waiting login
+        const waitingLogin = data.sources.filter(s => s.browserOpen && !s.isLoggedIn && !s.isRunning);
+        if (waitingLogin.length > 0) {
+            tips.push({
+                icon: <KeyIcon className="w-5 h-5 text-orange-500" />,
+                text: <>Silakan login di browser <strong>{waitingLogin.map(s => s.name).join(', ')}</strong> yang terbuka</>,
+                priority: 2
+            });
+        }
+
+        // Default tips when no special conditions
+        if (tips.length === 0) {
+            tips.push({
+                icon: <LightBulbIcon className="w-5 h-5 text-yellow-400" />,
+                text: <>Klik tab <strong>SIPEDE</strong> atau <strong>SPDP</strong> untuk memulai scraping</>,
+                priority: 10
+            });
+        }
+
+        // Always show auto-refresh status tip
+        tips.push({
+            icon: autoRefresh ? <PlayCircleIcon className="w-5 h-5 text-green-500" /> : <PauseCircleIcon className="w-5 h-5 text-gray-400" />,
+            text: autoRefresh
+                ? <>Auto-refresh <strong>aktif</strong>. Data ter-update setiap 3 detik</>
+                : <>Auto-refresh <strong>paused</strong>. Klik Resume untuk mengaktifkan</>,
+            priority: 20
+        });
+
+        // Sort by priority and return top 3
+        return tips.sort((a, b) => a.priority - b.priority).slice(0, 3);
+    }, [data.servers, data.sources, autoRefresh]);
 
     return (
         <div className="dashboard">
             {/* Notification Toast */}
             {showNotification && (
                 <div className="notification">
-                    <span className="notification-icon">✓</span>
+                    <CheckIcon className="w-5 h-5 notification-icon" />
                     {notificationMessage}
                 </div>
             )}
@@ -278,15 +414,15 @@ export default function DashboardTab() {
                         <span className={`live-dot ${autoRefresh ? 'active' : ''}`}></span>
                         <span className="live-text">{autoRefresh ? 'LIVE' : 'PAUSED'}</span>
                     </div>
-                    <button 
+                    <button
                         className={`toggle-btn ${autoRefresh ? 'active' : ''}`}
                         onClick={() => setAutoRefresh(!autoRefresh)}
                     >
                         {autoRefresh ? 'Pause' : 'Resume'}
                     </button>
-                    <button 
-                        className="refresh-btn" 
-                        onClick={fetchDashboardData} 
+                    <button
+                        className="refresh-btn"
+                        onClick={fetchDashboardData}
                         disabled={isLoading}
                     >
                         <svg className={isLoading ? 'spinning' : ''} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -350,138 +486,44 @@ export default function DashboardTab() {
 
             {/* Main Content Grid */}
             <div className="content-grid">
-                {/* Sources Section */}
-                <div className="section sources-section">
+                {/* Scraping History Section - Full Width */}
+                <div className="section scraping-history-section">
                     <div className="section-header">
                         <h2>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                <line x1="3" y1="9" x2="21" y2="9" />
-                                <line x1="9" y1="21" x2="9" y2="9" />
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                             </svg>
-                            Sumber Data
+                            Riwayat Scraping
                         </h2>
+                        {activityLogs.length > 0 && (
+                            <button className="clear-btn" onClick={clearActivityLogs}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                                Hapus Semua
+                            </button>
+                        )}
                     </div>
-                    <div className="sources-grid">
-                        {data.sources.map((source) => {
-                            const status = getStatus(source);
-                            
-                            return (
-                                <div key={source.name} className={`source-card ${status.class}`}>
-                                    <div className="source-header">
-                                        <div className="source-identity">
-                                            <span className="source-icon">{source.icon}</span>
-                                            <div className="source-meta">
-                                                <h3>{source.name}</h3>
-                                                <div className={`status-pill ${status.class}`}>
-                                                    <span className="status-dot"></span>
-                                                    {status.text}
-                                                </div>
-                                            </div>
+                    <div className="scraping-history-list">
+                        {activityLogs.length > 0 ? (
+                            activityLogs.map((log) => (
+                                <div key={log.id} className={`history-item ${log.type}`}>
+                                    <div className="history-icon">{getLogIcon(log.type)}</div>
+                                    <div className="history-content">
+                                        <div className="history-message">{log.message}</div>
+                                        <div className="history-meta">
+                                            <span className="history-source">{log.source}</span>
+                                            <span className="history-time">{formatTimeAgo(new Date(log.createdAt))}</span>
                                         </div>
-                                        {source.isRunning && (
-                                            <div className="progress-ring">
-                                                <svg viewBox="0 0 36 36">
-                                                    <path className="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                                    <path className="ring-progress" strokeDasharray={`${source.totalPages > 0 ? (source.pagesScraped / source.totalPages) * 100 : 50}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                                </svg>
-                                            </div>
-                                        )}
                                     </div>
-
-                                    {/* Show stats if has data */}
-                                    {source.dataCount > 0 && !source.isRunning && (
-                                        <div className="source-stats">
-                                            <div className="source-stat">
-                                                <span className="stat-num">{source.dataCount.toLocaleString()}</span>
-                                                <span className="stat-lbl">Records</span>
-                                            </div>
-                                            <div className="source-stat">
-                                                <span className="stat-num">{source.pagesScraped}</span>
-                                                <span className="stat-lbl">Pages</span>
-                                            </div>
-                                            <div className="source-stat">
-                                                <span className="stat-num">{formatTime(source.elapsedTime)}</span>
-                                                <span className="stat-lbl">Waktu</span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Running progress - Big Progress Bar */}
-                                    {source.isRunning && (
-                                        <div className="scraping-progress">
-                                            <div className="progress-header">
-                                                <div className="progress-info">
-                                                    <span className="progress-title">Scraping in progress...</span>
-                                                    <span className="progress-detail">
-                                                        {source.dataCount.toLocaleString()} data • Page {source.pagesScraped}{source.totalPages > 0 ? ` / ${source.totalPages}` : ''}
-                                                    </span>
-                                                </div>
-                                                <div className="progress-percentage">
-                                                    {source.totalPages > 0 ? Math.round((source.pagesScraped / source.totalPages) * 100) : 0}%
-                                                </div>
-                                            </div>
-                                            <div className="progress-track">
-                                                <div 
-                                                    className="progress-fill" 
-                                                    style={{ width: `${source.totalPages > 0 ? (source.pagesScraped / source.totalPages) * 100 : 0}%` }}
-                                                >
-                                                    <div className="progress-shine"></div>
-                                                </div>
-                                            </div>
-                                            <div className="progress-footer">
-                                                <span className="elapsed-time">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <circle cx="12" cy="12" r="10" />
-                                                        <polyline points="12 6 12 12 16 14" />
-                                                    </svg>
-                                                    {formatTime(source.elapsedTime)}
-                                                </span>
-                                                <span className="progress-status">
-                                                    <span className="pulse-dot"></span>
-                                                    Mengambil data...
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Error message */}
-                                    {source.error && (
-                                        <div className="error-msg">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <circle cx="12" cy="12" r="10" />
-                                                <line x1="12" y1="8" x2="12" y2="12" />
-                                                <line x1="12" y1="16" x2="12.01" y2="16" />
-                                            </svg>
-                                            {source.error}
-                                        </div>
-                                    )}
-
-                                    {/* Actions */}
-                                    {!source.error && source.dataCount > 0 && (
-                                        <div className="source-actions">
-                                            <button 
-                                                className="action-btn primary"
-                                                onClick={() => handleExport(source, 'csv')}
-                                            >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                                    <polyline points="7 10 12 15 17 10" />
-                                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                                </svg>
-                                                Excel
-                                            </button>
-                                            <button 
-                                                className="action-btn secondary"
-                                                onClick={() => handleExport(source, 'json')}
-                                            >
-                                                JSON
-                                            </button>
-                                        </div>
-                                    )}
                                 </div>
-                            );
-                        })}
+                            ))
+                        ) : (
+                            <div className="empty-history">
+                                <span>Belum ada riwayat</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -532,7 +574,7 @@ export default function DashboardTab() {
                                 Aktivitas
                             </h2>
                             {activityLogs.length > 0 && (
-                                <button className="clear-btn" onClick={() => setActivityLogs([])}>Clear</button>
+                                <button className="clear-btn" onClick={clearActivityLogs}>Clear</button>
                             )}
                         </div>
                         <div className="activity-list">
@@ -542,7 +584,7 @@ export default function DashboardTab() {
                                         <span className="activity-icon">{getLogIcon(log.type)}</span>
                                         <div className="activity-content">
                                             <span className="activity-msg">{log.message}</span>
-                                            <span className="activity-meta">{log.source} • {formatTimeAgo(log.time)}</span>
+                                            <span className="activity-meta">{log.source} • {formatTimeAgo(new Date(log.createdAt))}</span>
                                         </div>
                                     </div>
                                 ))
@@ -561,20 +603,14 @@ export default function DashboardTab() {
                 </div>
             </div>
 
-            {/* Quick Tips */}
+            {/* Quick Tips - Dynamic */}
             <div className="tips-section">
-                <div className="tip">
-                    <span className="tip-icon">💡</span>
-                    <span>Klik tab <strong>SIPEDE</strong> atau <strong>SPP</strong> untuk memulai scraping</span>
-                </div>
-                <div className="tip">
-                    <span className="tip-icon">⚡</span>
-                    <span>Data akan ter-update otomatis setiap 3 detik saat <strong>LIVE</strong> aktif</span>
-                </div>
-                <div className="tip">
-                    <span className="tip-icon">📥</span>
-                    <span>Export data ke <strong>Excel</strong> atau <strong>JSON</strong> setelah scraping selesai</span>
-                </div>
+                {getDynamicTips().map((tip, index) => (
+                    <div key={index} className="tip">
+                        <span className="tip-icon">{tip.icon}</span>
+                        <span>{tip.text}</span>
+                    </div>
+                ))}
             </div>
 
             <style jsx>{`
@@ -1351,6 +1387,191 @@ export default function DashboardTab() {
 
                 .empty-activity span {
                     font-size: 0.8rem;
+                }
+
+                /* Scraping History Section */
+                .scraping-history-section {
+                    background: linear-gradient(135deg, #ffffff 0%, #f8faf9 100%);
+                }
+
+                .scraping-history-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                    max-height: 400px;
+                    overflow-y: auto;
+                    padding: 0.25rem;
+                }
+
+                .scraping-history-list::-webkit-scrollbar {
+                    width: 6px;
+                }
+
+                .scraping-history-list::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 3px;
+                }
+
+                .scraping-history-list::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 3px;
+                }
+
+                .history-item {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 0.875rem;
+                    padding: 0.875rem 1rem;
+                    background: linear-gradient(135deg, #ffffff 0%, #f8faf9 100%);
+                    border: 1px solid #e2e8f0;
+                    border-radius: 12px;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+                }
+
+                .history-item:hover {
+                    background: linear-gradient(135deg, #f8faf9 0%, #f1f5f9 100%);
+                    border-color: #cbd5e1;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+                    transform: translateY(-1px);
+                }
+
+                .history-item.success {
+                    border-left: 4px solid #10b981;
+                    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+                }
+
+                .history-item.error {
+                    border-left: 4px solid #ef4444;
+                    background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+                }
+
+                .history-item.warning {
+                    border-left: 4px solid #f59e0b;
+                    background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+                }
+
+                .history-item.info {
+                    border-left: 4px solid #3b82f6;
+                    background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+                }
+
+                .history-icon {
+                    width: 32px;
+                    height: 32px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 8px;
+                    flex-shrink: 0;
+                }
+
+                .history-item.success .history-icon {
+                    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+                    color: #059669;
+                }
+
+                .history-item.error .history-icon {
+                    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+                    color: #dc2626;
+                }
+
+                .history-item.warning .history-icon {
+                    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                    color: #d97706;
+                }
+
+                .history-item.info .history-icon {
+                    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+                    color: #2563eb;
+                }
+
+                .history-content {
+                    flex: 1;
+                    min-width: 0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.375rem;
+                }
+
+                .history-message {
+                    font-size: 0.875rem;
+                    color: #1e293b;
+                    font-weight: 600;
+                    line-height: 1.4;
+                }
+
+                .history-meta {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 0.75rem;
+                    color: #64748b;
+                }
+
+                .history-source {
+                    font-weight: 600;
+                    color: #047857;
+                    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+                    padding: 0.125rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.7rem;
+                }
+
+                .history-time {
+                    color: #94a3b8;
+                    font-size: 0.75rem;
+                }
+
+                .history-time::before {
+                    content: '•';
+                    margin-right: 0.5rem;
+                    color: #cbd5e1;
+                }
+
+                .empty-history {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 2.5rem 2rem;
+                    text-align: center;
+                    color: #94a3b8;
+                    background: linear-gradient(135deg, #f8faf9 0%, #f1f5f9 100%);
+                    border-radius: 12px;
+                    border: 2px dashed #e2e8f0;
+                }
+
+                .empty-history span {
+                    font-size: 0.9rem;
+                    font-weight: 500;
+                    color: #64748b;
+                }
+
+                .clear-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.375rem;
+                    padding: 0.375rem 0.75rem;
+                    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+                    border: 1px solid rgba(239, 68, 68, 0.2);
+                    border-radius: 6px;
+                    color: #dc2626;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+
+                .clear-btn:hover {
+                    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+                    border-color: rgba(239, 68, 68, 0.3);
+                    transform: translateY(-1px);
+                }
+
+                .clear-btn svg {
+                    width: 14px;
+                    height: 14px;
                 }
 
                 /* Tips Section */

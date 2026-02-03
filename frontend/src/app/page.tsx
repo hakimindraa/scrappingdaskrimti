@@ -24,10 +24,10 @@ export default function HomePage() {
                         </svg>
                         <h1>Web Scraper</h1>
                     </div>
-                    
+
                     {/* Tab Switcher */}
                     <div className="tab-switcher">
-                        <button 
+                        <button
                             className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
                             onClick={() => setActiveTab('dashboard')}
                         >
@@ -39,7 +39,7 @@ export default function HomePage() {
                             </svg>
                             Dashboard
                         </button>
-                        <button 
+                        <button
                             className={`tab-btn ${activeTab === 'sipede' ? 'active' : ''}`}
                             onClick={() => setActiveTab('sipede')}
                         >
@@ -49,7 +49,7 @@ export default function HomePage() {
                             </svg>
                             SIPEDE
                         </button>
-                        <button 
+                        <button
                             className={`tab-btn ${activeTab === 'spp' ? 'active' : ''}`}
                             onClick={() => setActiveTab('spp')}
                         >
@@ -58,7 +58,7 @@ export default function HomePage() {
                                 <line x1="3" y1="9" x2="21" y2="9" />
                                 <line x1="9" y1="21" x2="9" y2="9" />
                             </svg>
-                            SPP
+                            SPDP
                         </button>
                     </div>
                 </div>

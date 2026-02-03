@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from app.services.scraper_service import SPPScraperService
+from app.services import data_store
 import json
 import io
 import csv
@@ -115,6 +116,16 @@ async def get_data(page: int = 1, limit: int = 10, search: str = ""):
         return {"success": False, "message": str(e), "data": [], "pagination": {}}
 
 
+# Get data info (last scraped time, row count without full data)
+@router.get("/data-info")
+async def get_data_info():
+    try:
+        info = data_store.get_data_info('SPDP')
+        return {"success": True, **info}
+    except Exception as e:
+        return {"success": False, "exists": False, "row_count": 0, "message": str(e)}
+
+
 # Export to CSV
 @router.get("/export/csv")
 async def export_csv():
@@ -133,7 +144,43 @@ async def export_csv():
         return StreamingResponse(
             iter([output.getvalue()]),
             media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=spp_data.csv"}
+            headers={"Content-Disposition": "attachment; filename=spdp_data.csv"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Export to Excel
+@router.get("/export/excel")
+async def export_excel():
+    try:
+        import pandas as pd
+        
+        data = scraper_service.get_all_data()
+        if not data:
+            raise HTTPException(status_code=404, detail="No data to export")
+        
+        # Create DataFrame and Excel file
+        df = pd.DataFrame(data)
+        output = io.BytesIO()
+        
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='SPDP Data', index=False)
+            
+            # Auto-adjust column widths
+            worksheet = writer.sheets['SPDP Data']
+            for idx, col in enumerate(df.columns):
+                max_length = max(
+                    df[col].astype(str).map(len).max(),
+                    len(str(col))
+                ) + 2
+                worksheet.column_dimensions[chr(65 + idx)].width = min(max_length, 50)
+        
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=spdp_data.xlsx"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -4,6 +4,17 @@ import { useState, useEffect, useCallback } from 'react';
 import * as api from '@/lib/sipede-api';
 import type { ScraperStatus, DetectTableResponse } from '@/lib/sipede-api';
 import ScraperStyles from './ScraperStyles';
+import {
+    ExclamationTriangleIcon,
+    LightBulbIcon,
+    CalendarDaysIcon,
+    ListBulletIcon,
+    ArrowPathIcon,
+    ClockIcon,
+    InboxArrowDownIcon,
+    CheckCircleIcon,
+    MagnifyingGlassIcon,
+} from '@heroicons/react/24/outline';
 
 export default function SipedeScraperTab() {
     // Status state
@@ -105,13 +116,13 @@ export default function SipedeScraperTab() {
                 if (result.selectedYear) {
                     setSelectedYear(result.selectedYear);
                 }
-                
+
                 // Auto-detect table after navigation
                 const tableResult = await api.detectTable();
                 if (tableResult.success) {
                     setTableInfo(tableResult);
                 }
-                
+
                 setStep('ready');
             } else {
                 setError(result.message || 'Silakan login terlebih dahulu di browser SIPEDE');
@@ -126,7 +137,7 @@ export default function SipedeScraperTab() {
     // Handle year change
     const handleYearChange = async (year: string) => {
         if (!year || year === selectedYear) return;
-        
+
         setIsLoading(true);
         setError('');
         try {
@@ -135,7 +146,7 @@ export default function SipedeScraperTab() {
                 setSelectedYear(year);
                 setData([]);
                 setTableInfo(null);
-                
+
                 // Re-detect table after year change
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 const tableResult = await api.detectTable();
@@ -155,7 +166,7 @@ export default function SipedeScraperTab() {
     // Handle entries per page change
     const handleEntriesPerPageChange = async (entries: number) => {
         if (entries === entriesPerPage) return;
-        
+
         setIsLoading(true);
         setError('');
         try {
@@ -164,7 +175,7 @@ export default function SipedeScraperTab() {
                 setEntriesPerPage(result.entriesPerPage || entries);
                 setData([]);
                 setTableInfo(null);
-                
+
                 // Re-detect table after entries change
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 const tableResult = await api.detectTable();
@@ -188,7 +199,7 @@ export default function SipedeScraperTab() {
         try {
             await api.clearData();
             setData([]);
-            
+
             const result = await api.detectTable();
             if (result.success) {
                 setTableInfo(result);
@@ -219,15 +230,37 @@ export default function SipedeScraperTab() {
         }
     };
 
-    // Close browser
+    // Close browser - juga hapus data untuk mulai fresh
     const handleCloseBrowser = async () => {
         await api.closeBrowser();
+        await api.clearData(); // Clear data saat tutup browser
         setStatus(null);
         setTableInfo(null);
         setData([]);
         setAvailableYears(defaultYears);
         setSelectedYear('2026');
         setStep('initial');
+    };
+
+    // Start new scraping session (untuk scraping tahun lain)
+    const handleNewScraping = async () => {
+        setData([]);
+        setTableInfo(null);
+        setError('');
+        
+        // Re-detect table untuk memulai scraping baru
+        setIsLoading(true);
+        try {
+            const result = await api.detectTable();
+            if (result.success) {
+                setTableInfo(result);
+            }
+            setStep('ready');
+        } catch (err) {
+            setError('Gagal mempersiapkan scraping baru');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // Fetch data
@@ -258,7 +291,7 @@ export default function SipedeScraperTab() {
         if (step === 'done' && status && status.dataCount > 0) {
             fetchData(1);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step, status?.dataCount]);
 
     return (
@@ -305,7 +338,7 @@ export default function SipedeScraperTab() {
                 {/* Error Display */}
                 {error && (
                     <div className="error-box">
-                        <span>⚠️</span> {error}
+                        <ExclamationTriangleIcon className="w-5 h-5" /> {error}
                         <button onClick={() => setError('')}>×</button>
                     </div>
                 )}
@@ -350,7 +383,7 @@ export default function SipedeScraperTab() {
                         </ol>
 
                         <div className="info-box">
-                            💡 Setelah login, sistem akan otomatis mengarahkan ke halaman <strong>Surat Terkirim</strong>
+                            <LightBulbIcon className="w-5 h-5 inline-block mr-1" /> Setelah login, sistem akan otomatis mengarahkan ke halaman <strong>Surat Terkirim</strong>
                         </div>
 
                         <button onClick={handleCheckLogin} className="primary-btn" disabled={isLoading}>
@@ -375,23 +408,23 @@ export default function SipedeScraperTab() {
 
                         {/* Year Filter Dropdown - Always show since we have default years */}
                         <div className="year-filter-section">
-                            <label className="year-filter-label">📅 Pilih Tahun Data:</label>
-                            <select 
+                            <label className="year-filter-label"><CalendarDaysIcon className="w-4 h-4 inline-block mr-1" /> Pilih Tahun Data:</label>
+                            <select
                                 className="year-select"
-                                    value={selectedYear}
-                                    onChange={(e) => handleYearChange(e.target.value)}
-                                    disabled={isLoading}
-                                >
-                                    {availableYears.map((year) => (
-                                        <option key={year} value={year}>{year}</option>
-                                    ))}
-                                </select>
-                            </div>
+                                value={selectedYear}
+                                onChange={(e) => handleYearChange(e.target.value)}
+                                disabled={isLoading}
+                            >
+                                {availableYears.map((year) => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
 
                         {/* Entries Per Page Dropdown */}
                         <div className="year-filter-section">
-                            <label className="year-filter-label">📋 Entries Per Page:</label>
-                            <select 
+                            <label className="year-filter-label"><ListBulletIcon className="w-4 h-4 inline-block mr-1" /> Entries Per Page:</label>
+                            <select
                                 className="year-select"
                                 value={entriesPerPage}
                                 onChange={(e) => handleEntriesPerPageChange(parseInt(e.target.value))}
@@ -443,7 +476,7 @@ export default function SipedeScraperTab() {
 
                         <div className="action-row">
                             <button onClick={handleRefreshTable} className="secondary-btn" disabled={isLoading}>
-                                {isLoading ? <span className="spinner" /> : '🔃'} Refresh Data
+                                {isLoading ? <span className="spinner" /> : <ArrowPathIcon className="w-4 h-4 inline-block" />} Refresh Data
                             </button>
                             <button onClick={handleStartScraping} className="primary-btn success" disabled={isLoading || !tableInfo}>
                                 {isLoading ? (
@@ -472,9 +505,9 @@ export default function SipedeScraperTab() {
                         {status?.scrapingMessage && (
                             <div className={`scraping-status-detail ${status.scrapingPhase || 'idle'}`}>
                                 <span className="status-icon">
-                                    {status.scrapingPhase === 'navigating' && '🔄'}
-                                    {status.scrapingPhase === 'waiting' && '⏳'}
-                                    {status.scrapingPhase === 'scraping' && '📥'}
+                                    {status.scrapingPhase === 'navigating' && <ArrowPathIcon className="w-5 h-5 animate-spin" />}
+                                    {status.scrapingPhase === 'waiting' && <ClockIcon className="w-5 h-5" />}
+                                    {status.scrapingPhase === 'scraping' && <InboxArrowDownIcon className="w-5 h-5" />}
                                 </span>
                                 <span className="status-text">{status.scrapingMessage}</span>
                             </div>
@@ -491,12 +524,12 @@ export default function SipedeScraperTab() {
                                 </span>
                             </div>
                             <div className="progress-track">
-                                <div 
+                                <div
                                     className="progress-fill"
-                                    style={{ 
+                                    style={{
                                         width: `${status?.tableInfo?.pagination?.totalPages && status.tableInfo.pagination.totalPages > 0
                                             ? (status.pagesScraped / status.tableInfo.pagination.totalPages) * 100
-                                            : 0}%` 
+                                            : 0}%`
                                     }}
                                 >
                                     <div className="progress-shine"></div>
@@ -533,7 +566,7 @@ export default function SipedeScraperTab() {
                 {step === 'done' && (
                     <div className="data-section">
                         <div className="summary-card">
-                            <h3>✅ Scraping Selesai!</h3>
+                            <h3><CheckCircleIcon className="w-6 h-6 inline-block mr-1 text-green-500" /> Scraping Selesai!</h3>
                             {selectedYear && <p className="year-info">Data Tahun: {selectedYear}</p>}
                             <div className="summary-stats">
                                 <div className="stat">
@@ -549,6 +582,10 @@ export default function SipedeScraperTab() {
                                     <span className="stat-label">Waktu</span>
                                 </div>
                             </div>
+                            <button onClick={handleNewScraping} className="new-scrape-btn" disabled={isLoading}>
+                                <ArrowPathIcon className="w-5 h-5" />
+                                {isLoading ? 'Mempersiapkan...' : 'Scraping Tahun Lain'}
+                            </button>
                         </div>
 
                         <div className="data-toolbar">
@@ -559,9 +596,10 @@ export default function SipedeScraperTab() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Cari data..."
                                 />
-                                <button type="submit">🔍</button>
+                                <button type="submit"><MagnifyingGlassIcon className="w-5 h-5" /></button>
                             </form>
                             <div className="export-buttons">
+                                <a href={api.getExportExcelUrl()} download className="export-btn excel">Excel</a>
                                 <a href={api.getExportCsvUrl()} download className="export-btn csv">CSV</a>
                                 <a href={api.getExportJsonUrl()} download className="export-btn json">JSON</a>
                             </div>
@@ -606,7 +644,7 @@ export default function SipedeScraperTab() {
                             {availableYears.length > 0 && (
                                 <div className="year-filter-inline">
                                     <label>Scrape tahun lain:</label>
-                                    <select 
+                                    <select
                                         className="year-select-inline"
                                         value=""
                                         onChange={async (e) => {

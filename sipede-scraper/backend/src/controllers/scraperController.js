@@ -1,7 +1,22 @@
 const scraperService = require('../services/scraperService');
+const { addLogInternal } = require('./activityController');
+const dataController = require('./dataController');
+const XLSX = require('xlsx');
 
-// Store for scraped data and status
+// Store for scraped data and status (also loaded from database on startup)
 let scrapedData = [];
+
+// Load persisted data on module load
+try {
+    const loaded = dataController.loadData('SIPEDE');
+    if (loaded.success && loaded.data.length > 0) {
+        scrapedData = loaded.data;
+        console.log(`[Controller] Loaded ${loaded.rowCount} persisted SIPEDE records from database`);
+    }
+} catch (error) {
+    console.error('[Controller] Failed to load persisted data:', error);
+}
+
 let scrapeStatus = {
     browserOpen: false,
     isLoggedIn: false,
@@ -90,7 +105,7 @@ exports.checkLoginAndNavigate = async (req, res) => {
 exports.getAvailableYears = async (req, res) => {
     try {
         const result = await scraperService.getAvailableYears();
-        
+
         scrapeStatus.availableYears = result.years || [];
         scrapeStatus.selectedYear = result.selectedYear;
 
@@ -251,6 +266,12 @@ exports.startScraping = async (req, res) => {
         scrapeStatus.scrapingMessage = 'Memulai scraping...';
         scrapedData = [];
 
+        // Clear old data from database before starting new scrape
+        dataController.clearData('SIPEDE');
+
+        // Log activity: scraping started
+        addLogInternal('info', `Scraping dimulai${scrapeStatus.selectedYear ? ` (tahun ${scrapeStatus.selectedYear})` : ''}`, 'SIPEDE');
+
         // Set up status callback for real-time updates
         scraperService.setStatusCallback((phase, message, currentPage) => {
             scrapeStatus.scrapingPhase = phase;
@@ -290,6 +311,14 @@ exports.startScraping = async (req, res) => {
         scrapeStatus.scrapingMessage = '';
         if (!result.success) {
             scrapeStatus.error = result.message;
+            // Log activity: scraping error
+            addLogInternal('error', `Scraping gagal${scrapeStatus.selectedYear ? ` (tahun ${scrapeStatus.selectedYear})` : ''}: ${result.message}`, 'SIPEDE');
+        } else {
+            // Save data to database for persistence
+            const headers = scrapedData.length > 0 ? Object.keys(scrapedData[0]) : [];
+            dataController.saveData('SIPEDE', headers, scrapedData, scrapeStatus.pagesScraped);
+            // Log activity: scraping completed
+            addLogInternal('success', `Scraping selesai${scrapeStatus.selectedYear ? ` tahun ${scrapeStatus.selectedYear}` : ''} - ${scrapedData.length} data dari ${scrapeStatus.pagesScraped} halaman`, 'SIPEDE');
         }
     } catch (error) {
         console.error('Scraping controller error:', error);
@@ -405,6 +434,53 @@ exports.exportCsv = (req, res) => {
 };
 
 /**
+ * Export data to Excel (.xlsx)
+ */
+exports.exportExcel = (req, res) => {
+    if (scrapedData.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'No data to export'
+        });
+    }
+
+    try {
+        // Create workbook and worksheet
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(scrapedData);
+
+        // Get headers for styling
+        const headers = Object.keys(scrapedData[0]);
+
+        // Set column widths based on content
+        const colWidths = headers.map(header => {
+            const maxLength = Math.max(
+                header.length,
+                ...scrapedData.map(row => String(row[header] || '').length)
+            );
+            return { wch: Math.min(maxLength + 2, 50) }; // Max width 50
+        });
+        worksheet['!cols'] = colWidths;
+
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'SIPEDE Data');
+
+        // Generate buffer
+        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+        // Send response
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=sipede_data.xlsx');
+        res.send(buffer);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to export Excel: ' + error.message
+        });
+    }
+};
+
+/**
  * Navigate to specific URL
  */
 exports.navigateTo = async (req, res) => {
@@ -440,13 +516,16 @@ exports.clearData = (req, res) => {
     try {
         // Clear scraped data array
         scrapedData.length = 0;
-        
+
+        // Clear from database
+        dataController.clearData('SIPEDE');
+
         // Reset status
         scrapeStatus.pagesScraped = 0;
         scrapeStatus.itemsScraped = 0;
         scrapeStatus.tableInfo = null;
         scrapeStatus.error = null;
-        
+
         res.json({
             success: true,
             message: 'Data cleared successfully'

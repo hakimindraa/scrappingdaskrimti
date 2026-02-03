@@ -10,6 +10,8 @@ import time
 import re
 from typing import Optional, Dict, List, Any
 from datetime import datetime
+from app.services.activity_logger import add_activity_log_sync
+from app.services import data_store
 
 
 class SPPScraperService:
@@ -32,6 +34,18 @@ class SPPScraperService:
             "elapsedTime": 0,
             "shouldStop": False
         }
+        
+        # Load persisted data on startup
+        try:
+            loaded = data_store.load_data('SPDP')
+            if loaded.get('success') and loaded.get('data'):
+                self.data = loaded['data']
+                self.headers = loaded.get('headers', [])
+                self.status['dataCount'] = len(self.data)
+                self.status['pagesScraped'] = loaded.get('pages_scraped', 0)
+                print(f"[Service] Loaded {len(self.data)} persisted SPDP records from database")
+        except Exception as e:
+            print(f"[Service] Failed to load persisted data: {e}")
     
     def _setup_driver(self):
         """Setup Chrome driver dengan opsi optimal"""
@@ -352,6 +366,9 @@ class SPPScraperService:
         self.status["itemsScraped"] = 0
         self.data = []
         
+        # Log activity: scraping started
+        add_activity_log_sync("info", "Scraping dimulai", "SPDP")
+        
         seen_rows = set()
         pagination = self._get_pagination_info()
         total_pages = pagination.get("totalPages", 1)
@@ -420,6 +437,18 @@ class SPPScraperService:
         finally:
             self.status["isRunning"] = False
             self.status["dataCount"] = len(self.data)
+            
+            # Log activity: scraping completed or error
+            if self.status["error"]:
+                add_activity_log_sync("error", f"Scraping gagal: {self.status['error']}", "SPDP")
+            else:
+                # Save data to database for persistence
+                data_store.save_data('SPDP', self.headers, self.data, self.status['pagesScraped'])
+                add_activity_log_sync(
+                    "success", 
+                    f"Scraping selesai - {len(self.data)} data dari {self.status['pagesScraped']} halaman", 
+                    "SPDP"
+                )
     
     def stop_scraping(self):
         """Stop scraping process"""
@@ -464,3 +493,5 @@ class SPPScraperService:
         self.status["dataCount"] = 0
         self.status["pagesScraped"] = 0
         self.status["itemsScraped"] = 0
+        # Clear from database
+        data_store.clear_data('SPDP')

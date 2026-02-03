@@ -100,7 +100,7 @@ $frontendBat = Join-Path $scriptDir "_run_frontend.bat"
 @echo off
 title SIPEDE Backend - Port 5000
 cd /d "$scriptDir\sipede-scraper\backend"
-npm run dev
+npm start
 "@ | Out-File -FilePath $sipedeBat -Encoding ASCII
 
 # SPP Backend batch

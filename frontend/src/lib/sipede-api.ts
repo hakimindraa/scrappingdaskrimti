@@ -188,9 +188,70 @@ export function getExportCsvUrl(): string {
     return `${SIPEDE_API_URL}/api/scraper/export/csv`;
 }
 
+export function getExportExcelUrl(): string {
+    return `${SIPEDE_API_URL}/api/scraper/export/excel`;
+}
+
 export async function clearData(): Promise<ApiResponse> {
     const response = await fetch(`${SIPEDE_API_URL}/api/scraper/clear`, {
         method: 'POST',
+    });
+    return response.json();
+}
+
+// ============================================
+// Data Info Types & Functions
+// ============================================
+
+export interface DataInfo {
+    success: boolean;
+    exists: boolean;
+    rowCount: number;
+    pagesScraped: number;
+    scrapedAt?: string;
+    updatedAt?: string;
+}
+
+export async function getDataInfo(): Promise<DataInfo> {
+    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/data-info`);
+    return response.json();
+}
+
+// ============================================
+// Activity Log Types & Functions
+// ============================================
+
+export interface ActivityLog {
+    id: number;
+    type: 'info' | 'success' | 'warning' | 'error';
+    message: string;
+    source: string;
+    createdAt: string;
+}
+
+export interface ActivityLogsResponse {
+    success: boolean;
+    data: ActivityLog[];
+    total: number;
+}
+
+export async function getActivityLogs(limit: number = 50): Promise<ActivityLogsResponse> {
+    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/activity?limit=${limit}`);
+    return response.json();
+}
+
+export async function addActivityLog(type: ActivityLog['type'], message: string, source: string): Promise<ApiResponse> {
+    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/activity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, message, source }),
+    });
+    return response.json();
+}
+
+export async function clearActivityLogs(): Promise<ApiResponse> {
+    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/activity`, {
+        method: 'DELETE',
     });
     return response.json();
 }

@@ -4,6 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import * as api from '@/lib/spp-api';
 import type { ScraperStatus, DetectTableResponse } from '@/lib/spp-api';
 import ScraperStyles from './ScraperStyles';
+import {
+    ExclamationTriangleIcon,
+    LightBulbIcon,
+    ArrowPathIcon,
+    CheckCircleIcon,
+    MagnifyingGlassIcon,
+    SignalIcon,
+} from '@heroicons/react/24/outline';
 
 export default function SppScraperTab() {
     // Status state
@@ -67,7 +75,7 @@ export default function SppScraperTab() {
                 setError(result.message || 'Failed to open browser');
             }
         } catch (err) {
-            setError('Failed to connect to server. Pastikan backend SPP berjalan di port 5001.');
+            setError('Failed to connect to server. Pastikan backend SPDP berjalan di port 5001.');
         } finally {
             setIsLoading(false);
         }
@@ -81,7 +89,7 @@ export default function SppScraperTab() {
             // Clear data lama sebelum deteksi ulang
             await api.clearData();
             setData([]);
-            
+
             const result = await api.detectTable();
             if (result.success) {
                 setTableInfo(result);
@@ -104,7 +112,7 @@ export default function SppScraperTab() {
             await api.clearData();
             setData([]);
             setTableInfo(null);
-            
+
             const result = await api.detectTable();
             if (result.success) {
                 setTableInfo(result);
@@ -159,6 +167,43 @@ export default function SppScraperTab() {
         setStep('initial');
     };
 
+    // Clear all scraped data
+    const handleClearData = async () => {
+        if (!confirm('Hapus semua data yang sudah di-scrape?')) return;
+        setIsLoading(true);
+        try {
+            await api.clearData();
+            setData([]);
+            setStatus(prev => prev ? { ...prev, dataCount: 0, pagesScraped: 0, itemsScraped: 0 } : null);
+            setStep('ready');
+        } catch (err) {
+            setError('Gagal menghapus data');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Start new scraping session
+    const handleNewScraping = async () => {
+        setData([]);
+        setTableInfo(null);
+        setError('');
+        
+        // Re-detect table untuk memulai scraping baru
+        setIsLoading(true);
+        try {
+            const result = await api.detectTable();
+            if (result.success) {
+                setTableInfo(result);
+            }
+            setStep('ready');
+        } catch (err) {
+            setError('Gagal mempersiapkan scraping baru');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // Fetch data
     const fetchData = async (page: number = 1) => {
         setIsLoadingData(true);
@@ -187,14 +232,14 @@ export default function SppScraperTab() {
         if (step === 'done' && status && status.dataCount > 0) {
             fetchData(1);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step, status?.dataCount]);
 
     return (
         <div className="scraper-tab spp-theme">
             <div className="tab-header">
-                <h2>SPP Scraper</h2>
-                <p>Scraping data dari sistem SPP (Surat Perintah Penyelidikan)</p>
+                <h2>SPDP Scraper</h2>
+                <p>Scraping data dari sistem SPDP (Surat Pemberitahuan Dimulainya Penyidikan)</p>
                 {status?.browserOpen && (
                     <button onClick={handleCloseBrowser} className="close-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -234,7 +279,7 @@ export default function SppScraperTab() {
                 {/* Error Display */}
                 {error && (
                     <div className="error-box">
-                        <span>⚠️</span> {error}
+                        <ExclamationTriangleIcon className="w-5 h-5" /> {error}
                         <button onClick={() => setError('')}>×</button>
                     </div>
                 )}
@@ -249,16 +294,16 @@ export default function SppScraperTab() {
                                 <line x1="9" y1="21" x2="9" y2="9" />
                             </svg>
                         </div>
-                        <h2>Mulai Scraping SPP</h2>
-                        <p>Klik tombol di bawah untuk membuka browser SPP</p>
+                        <h2>Mulai Scraping SPDP</h2>
+                        <p>Klik tombol di bawah untuk membuka browser SPDP</p>
                         <div className="info-box">
-                            <strong>📡 Catatan:</strong> Pastikan Anda terhubung ke jaringan LAN untuk mengakses SPP
+                            <strong><SignalIcon className="w-4 h-4 inline-block mr-1" /> Catatan:</strong> Pastikan Anda terhubung ke jaringan LAN untuk mengakses SPDP
                         </div>
                         <button onClick={handleOpenBrowser} className="primary-btn spp" disabled={isLoading}>
                             {isLoading ? (
                                 <><span className="spinner" /> Membuka browser...</>
                             ) : (
-                                <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg> Buka Browser SPP</>
+                                <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg> Buka Browser SPDP</>
                             )}
                         </button>
                     </div>
@@ -274,7 +319,7 @@ export default function SppScraperTab() {
                             </svg>
                         </div>
                         <h2>Login & Pilih Data</h2>
-                        <p>Di browser SPP yang terbuka:</p>
+                        <p>Di browser SPDP yang terbuka:</p>
                         <ol className="instruction-list">
                             <li>Login dengan username dan password Anda</li>
                             <li>Navigasi ke menu <strong>Surat Terkirim</strong> atau data yang diinginkan</li>
@@ -344,10 +389,10 @@ export default function SppScraperTab() {
 
                         <div className="action-row">
                             <button onClick={handleChangeData} className="secondary-btn" disabled={isLoading}>
-                                🔄 Pilih Data Lain
+                                <ArrowPathIcon className="w-4 h-4 inline-block mr-1" /> Pilih Data Lain
                             </button>
                             <button onClick={handleRefreshTable} className="secondary-btn" disabled={isLoading}>
-                                {isLoading ? <span className="spinner" /> : '🔃'} Refresh Data
+                                {isLoading ? <span className="spinner" /> : <ArrowPathIcon className="w-4 h-4 inline-block" />} Refresh Data
                             </button>
                             <button onClick={handleStartScraping} className="primary-btn success" disabled={isLoading}>
                                 {isLoading ? (
@@ -359,7 +404,7 @@ export default function SppScraperTab() {
                         </div>
 
                         <div className="info-box">
-                            💡 <strong>Tip:</strong> Jika Anda mengubah filter di website SPP, klik "Refresh Data" untuk memperbarui informasi.
+                            <LightBulbIcon className="w-5 h-5 inline-block mr-1" /> <strong>Tip:</strong> Jika Anda mengubah filter di website SPDP, klik "Refresh Data" untuk memperbarui informasi.
                         </div>
                     </div>
                 )}
@@ -374,7 +419,7 @@ export default function SppScraperTab() {
                             </svg>
                         </div>
                         <h2>Sedang Scraping...</h2>
-                        <p>Jangan tutup browser. Scraper sedang mengambil data dari SPP.</p>
+                        <p>Jangan tutup browser. Scraper sedang mengambil data dari SPDP.</p>
 
                         {/* Progress Percentage */}
                         <div className="scraping-progress-section">
@@ -387,12 +432,12 @@ export default function SppScraperTab() {
                                 </span>
                             </div>
                             <div className="progress-track">
-                                <div 
+                                <div
                                     className="progress-fill"
-                                    style={{ 
+                                    style={{
                                         width: `${status?.tableInfo?.pagination?.totalPages && status.tableInfo.pagination.totalPages > 0
                                             ? (status.pagesScraped / status.tableInfo.pagination.totalPages) * 100
-                                            : 0}%` 
+                                            : 0}%`
                                     }}
                                 >
                                     <div className="progress-shine"></div>
@@ -425,7 +470,7 @@ export default function SppScraperTab() {
                 {step === 'done' && (
                     <div className="data-section">
                         <div className="summary-card spp">
-                            <h3>✅ Scraping SPP Selesai!</h3>
+                            <h3><CheckCircleIcon className="w-6 h-6 inline-block mr-1 text-green-500" /> Scraping SPDP Selesai!</h3>
                             <div className="summary-stats">
                                 <div className="stat">
                                     <span className="stat-value">{status?.pagesScraped || 0}</span>
@@ -440,6 +485,10 @@ export default function SppScraperTab() {
                                     <span className="stat-label">Waktu</span>
                                 </div>
                             </div>
+                            <button onClick={handleNewScraping} className="new-scrape-btn spp" disabled={isLoading}>
+                                <ArrowPathIcon className="w-5 h-5" />
+                                {isLoading ? 'Mempersiapkan...' : 'Scraping Data Baru'}
+                            </button>
                         </div>
 
                         <div className="data-toolbar">
@@ -450,11 +499,15 @@ export default function SppScraperTab() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Cari data..."
                                 />
-                                <button type="submit">🔍</button>
+                                <button type="submit"><MagnifyingGlassIcon className="w-5 h-5" /></button>
                             </form>
                             <div className="export-buttons">
+                                <a href={api.getExportExcelUrl()} download className="export-btn excel">Excel</a>
                                 <a href={api.getExportCsvUrl()} download className="export-btn csv">CSV</a>
                                 <a href={api.getExportJsonUrl()} download className="export-btn json">JSON</a>
+                                <button onClick={handleClearData} className="export-btn clear" disabled={isLoading}>
+                                    {isLoading ? 'Menghapus...' : 'Hapus Data'}
+                                </button>
                             </div>
                         </div>
 
@@ -495,7 +548,7 @@ export default function SppScraperTab() {
 
                         <div className="action-buttons">
                             <button onClick={handleChangeData} className="secondary-btn" disabled={isLoading}>
-                                🔄 Scrape Data Lain
+                                <ArrowPathIcon className="w-4 h-4 inline-block mr-1" /> Scrape Data Lain
                             </button>
                             <button onClick={handleCloseBrowser} className="danger-btn">Selesai & Tutup Browser</button>
                         </div>

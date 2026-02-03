@@ -1,0 +1,33 @@
+{
+  "logs": [
+    {
+      "id": 4,
+      "type": "success",
+      "message": "Scraping selesai - 713 data dari 8 halaman",
+      "source": "SIPEDE",
+      "created_at": "2026-02-03T04:45:18.481Z"
+    },
+    {
+      "id": 3,
+      "type": "info",
+      "message": "Scraping dimulai",
+      "source": "SIPEDE",
+      "created_at": "2026-02-03T04:42:32.914Z"
+    },
+    {
+      "id": 2,
+      "type": "success",
+      "message": "Scraping selesai - 692 data dari 7 halaman",
+      "source": "SIPEDE",
+      "created_at": "2026-02-03T04:01:23.591Z"
+    },
+    {
+      "id": 1,
+      "type": "info",
+      "message": "Scraping dimulai",
+      "source": "SIPEDE",
+      "created_at": "2026-02-03T03:58:56.242Z"
+    }
+  ],
+  "lastId": 4
+}
