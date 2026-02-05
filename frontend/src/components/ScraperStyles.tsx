@@ -525,7 +525,68 @@ export default function ScraperStyles() {
                 color: #064e3b;
             }
 
-            /* Max Pages Input */
+            /* Page Range Input */
+            .page-range-input {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 1.5rem;
+                padding: 1rem 1.5rem;
+                background: linear-gradient(135deg, rgba(6, 78, 59, 0.04), rgba(16, 185, 129, 0.04));
+                border: 1px solid rgba(6, 78, 59, 0.12);
+                border-radius: 12px;
+            }
+
+            .page-range-input label {
+                font-size: 0.875rem;
+                color: #64748b;
+                font-weight: 500;
+            }
+
+            .range-inputs {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .range-field {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            .range-field span {
+                font-size: 0.875rem;
+                color: #475569;
+            }
+
+            .range-field input {
+                width: 80px;
+                padding: 0.625rem 0.75rem;
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                color: #1e293b;
+                text-align: center;
+                font-weight: 500;
+                transition: border-color 0.2s;
+            }
+
+            .range-field input:focus {
+                outline: none;
+                border-color: #064e3b;
+                box-shadow: 0 0 0 3px rgba(6, 78, 59, 0.1);
+            }
+
+            .range-hint {
+                font-size: 0.75rem;
+                color: #94a3b8;
+            }
+
+            /* Keep old max-pages-input for backwards compatibility */
             .max-pages-input {
                 display: flex;
                 align-items: center;

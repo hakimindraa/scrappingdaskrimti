@@ -147,7 +147,8 @@ class SPPScraperService:
                         "entriesPerPage": per_page
                     }
             
-            # Fallback
+            # Fallback: Try to find total entries from any text containing numbers
+            # For dynamic pagination, mark as "unknown" so UI can show appropriate message
             page_links = self.driver.find_elements(By.CSS_SELECTOR, "ul.pagination li a, .pagination a")
             max_page = 1
             for link in page_links:
@@ -155,18 +156,21 @@ class SPPScraperService:
                 if text.isdigit():
                     max_page = max(max_page, int(text))
             
+            # Mark as dynamic pagination (more pages may exist)
             return {
-                "totalEntries": max_page * 10,
-                "totalPages": max_page,
+                "totalEntries": -1,  # -1 = unknown (dynamic)
+                "totalPages": -1,    # -1 = unknown (dynamic)
                 "currentPage": 1,
-                "entriesPerPage": 10
+                "entriesPerPage": 10,
+                "isDynamic": True
             }
         except Exception as e:
             return {
                 "totalEntries": 0,
-                "totalPages": 1,
+                "totalPages": -1,
                 "currentPage": 1,
-                "entriesPerPage": 10
+                "entriesPerPage": 10,
+                "isDynamic": True
             }
     
     def detect_table(self) -> Optional[Dict]:
@@ -223,6 +227,42 @@ class SPPScraperService:
             return first_row.text.strip()[:100]
         except:
             return ""
+    
+    def _extract_year_from_row(self, row: Dict[str, str]) -> Optional[int]:
+        """Extract year from row data by looking for date patterns"""
+        # Look for year in any column, prioritize columns with SPDP, TANGGAL, TGL in name
+        priority_keys = []
+        other_keys = []
+        
+        for key in row.keys():
+            key_upper = key.upper()
+            if any(x in key_upper for x in ['SPDP', 'TANGGAL', 'TGL', 'DATE']):
+                priority_keys.append(key)
+            else:
+                other_keys.append(key)
+        
+        # Check priority columns first, then others
+        for key in priority_keys + other_keys:
+            value = str(row.get(key, ''))
+            
+            # Look for date pattern DD-MM-YYYY or DD/MM/YYYY
+            date_match = re.search(r'\d{1,2}[-/]\d{1,2}[-/](\d{4})', value)
+            if date_match:
+                return int(date_match.group(1))
+            
+            # Look for year in SPDP number pattern /YYYY/
+            spdp_match = re.search(r'/(\d{4})/', value)
+            if spdp_match:
+                year = int(spdp_match.group(1))
+                if 2000 <= year <= 2100:  # Validate reasonable year range
+                    return year
+            
+            # Look for standalone 4-digit year
+            year_match = re.search(r'\b(20\d{2})\b', value)
+            if year_match:
+                return int(year_match.group(1))
+        
+        return None
     
     def _scrape_current_page(self) -> List[Dict]:
         """Scrape data from current page"""
@@ -356,8 +396,8 @@ class SPPScraperService:
         except:
             return False
     
-    def scrape_all_pages(self, max_pages: int = 0):
-        """Scrape all pages"""
+    def scrape_all_pages(self, start_page: int = 1, end_page: int = 0, filter_year: int = 0):
+        """Scrape pages from start_page to end_page (0 = all pages), optionally filter by year"""
         self.status["isRunning"] = True
         self.status["startTime"] = datetime.now().isoformat()
         self.status["error"] = None
@@ -367,16 +407,34 @@ class SPPScraperService:
         self.data = []
         
         # Log activity: scraping started
-        add_activity_log_sync("info", "Scraping dimulai", "SPDP")
+        year_info = f" tahun {filter_year}" if filter_year > 0 else ""
+        if end_page > 0:
+            add_activity_log_sync("info", f"Scraping dimulai (halaman {start_page}-{end_page}{year_info})", "SPDP")
+        else:
+            add_activity_log_sync("info", f"Scraping dimulai (dari halaman {start_page}{year_info})", "SPDP")
         
         seen_rows = set()
         pagination = self._get_pagination_info()
         total_pages = pagination.get("totalPages", 1)
         
-        if max_pages > 0:
-            total_pages = min(total_pages, max_pages)
+        # Determine target end page
+        # When end_page is 0, we scrape all pages (use a very high limit and rely on _is_last_page())
+        if end_page > 0:
+            target_end_page = end_page
+        else:
+            target_end_page = 99999  # No limit, will stop at _is_last_page()
         
-        current_page = 0
+        # Navigate to start page if not page 1
+        current_page = start_page - 1  # Will be incremented to start_page in loop
+        if start_page > 1:
+            # Navigate to start page first
+            if not self._click_next_page(target_page=start_page):
+                self.status["error"] = f"Gagal navigasi ke halaman {start_page}"
+                self.status["isRunning"] = False
+                add_activity_log_sync("error", f"Gagal navigasi ke halaman {start_page}", "SPDP")
+                return
+            time.sleep(1)
+        
         consecutive_failures = 0
         max_failures = 5
         
@@ -391,6 +449,12 @@ class SPPScraperService:
                 if page_data:
                     new_rows = 0
                     for row in page_data:
+                        # Filter by year if specified
+                        if filter_year > 0:
+                            row_year = self._extract_year_from_row(row)
+                            if row_year != filter_year:
+                                continue  # Skip this row
+                        
                         row_tuple = tuple(sorted(row.items()))
                         if row_tuple not in seen_rows:
                             seen_rows.add(row_tuple)
@@ -413,7 +477,7 @@ class SPPScraperService:
                 if self._is_last_page():
                     break
                 
-                if current_page >= total_pages:
+                if current_page >= target_end_page:
                     break
                 
                 # Go to next page

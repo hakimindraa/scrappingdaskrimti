@@ -19,7 +19,9 @@ class NavigateRequest(BaseModel):
 
 
 class ScrapeRequest(BaseModel):
-    max_pages: int = 0  # 0 = all pages
+    start_page: int = 1   # halaman mulai
+    end_page: int = 0     # halaman akhir (0 = semua)
+    filter_year: int = 0  # filter tahun (0 = semua tahun)
 
 
 # Status endpoint
@@ -86,7 +88,12 @@ async def start_scraping(request: ScrapeRequest, background_tasks: BackgroundTas
         if scraper_service.status["isRunning"]:
             return {"success": False, "message": "Scraping already in progress"}
         
-        background_tasks.add_task(scraper_service.scrape_all_pages, request.max_pages)
+        background_tasks.add_task(
+            scraper_service.scrape_all_pages, 
+            request.start_page, 
+            request.end_page,
+            request.filter_year
+        )
         return {"success": True, "message": "Scraping started"}
     except Exception as e:
         return {"success": False, "message": str(e)}

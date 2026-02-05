@@ -92,11 +92,11 @@ export async function detectTable(): Promise<DetectTableResponse> {
     return response.json();
 }
 
-export async function startScraping(maxPages: number = 0): Promise<ApiResponse> {
+export async function startScraping(startPage: number = 1, endPage: number = 0, filterYear: number = 0): Promise<ApiResponse> {
     const response = await fetch(`${SPP_API_URL}/api/scraper/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ max_pages: maxPages }),
+        body: JSON.stringify({ start_page: startPage, end_page: endPage, filter_year: filterYear }),
     });
     return response.json();
 }

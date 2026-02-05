@@ -21,7 +21,9 @@ export default function SppScraperTab() {
     const [error, setError] = useState('');
 
     // Scraping options
-    const [maxPages, setMaxPages] = useState(0);
+    const [startPage, setStartPage] = useState(1);
+    const [endPage, setEndPage] = useState(0);
+    const [filterYear, setFilterYear] = useState(0);
 
     // Data state
     const [data, setData] = useState<Record<string, string>[]>([]);
@@ -147,7 +149,7 @@ export default function SppScraperTab() {
         setIsLoading(true);
         setError('');
         try {
-            const result = await api.startScraping(maxPages);
+            const result = await api.startScraping(startPage, endPage, filterYear);
             if (result.success) {
                 setStep('scraping');
             }
@@ -158,13 +160,28 @@ export default function SppScraperTab() {
         }
     };
 
-    // Close browser
+    // Close browser and reset to initial state
     const handleCloseBrowser = async () => {
-        await api.closeBrowser();
-        setStatus(null);
-        setTableInfo(null);
-        setData([]);
-        setStep('initial');
+        setIsLoading(true);
+        try {
+            await api.clearData();
+            await api.closeBrowser();
+        } catch (err) {
+            console.error('Error closing browser:', err);
+        } finally {
+            setStatus(null);
+            setTableInfo(null);
+            setData([]);
+            setCurrentPage(1);
+            setTotalPages(0);
+            setSearchQuery('');
+            setStartPage(1);
+            setEndPage(0);
+            setFilterYear(0);
+            setStep('initial');
+            setError('');
+            setIsLoading(false);
+        }
     };
 
     // Clear all scraped data
@@ -188,7 +205,7 @@ export default function SppScraperTab() {
         setData([]);
         setTableInfo(null);
         setError('');
-        
+
         // Re-detect table untuk memulai scraping baru
         setIsLoading(true);
         try {
@@ -355,11 +372,15 @@ export default function SppScraperTab() {
 
                         <div className="stats-grid">
                             <div className="stat-card">
-                                <span className="stat-value">{tableInfo.pagination?.totalEntries || 0}</span>
+                                <span className="stat-value">
+                                    {(tableInfo.pagination?.totalEntries ?? 0) < 0 ? '?' : tableInfo.pagination?.totalEntries || 0}
+                                </span>
                                 <span className="stat-label">Total Data</span>
                             </div>
                             <div className="stat-card">
-                                <span className="stat-value">{tableInfo.pagination?.totalPages || 1}</span>
+                                <span className="stat-value">
+                                    {(tableInfo.pagination?.totalPages ?? 0) < 0 ? '?' : tableInfo.pagination?.totalPages || 1}
+                                </span>
                                 <span className="stat-label">Total Halaman</span>
                             </div>
                             <div className="stat-card">
@@ -377,14 +398,47 @@ export default function SppScraperTab() {
                             </div>
                         </div>
 
-                        <div className="max-pages-input">
-                            <label>Maksimum halaman (0 = semua):</label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={maxPages}
-                                onChange={(e) => setMaxPages(parseInt(e.target.value) || 0)}
-                            />
+                        <div className="page-range-input">
+                            <label>Rentang Halaman:</label>
+                            <div className="range-inputs">
+                                <div className="range-field">
+                                    <span>Dari:</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={startPage}
+                                        onChange={(e) => setStartPage(Math.max(1, parseInt(e.target.value) || 1))}
+                                    />
+                                </div>
+                                <div className="range-field">
+                                    <span>Sampai:</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={endPage}
+                                        onChange={(e) => setEndPage(parseInt(e.target.value) || 0)}
+                                    />
+                                </div>
+                            </div>
+                            <small className="range-hint">0 = sampai halaman terakhir</small>
+                        </div>
+
+                        <div className="year-filter-section">
+                            <label className="year-filter-label">Filter Tahun:</label>
+                            <select
+                                className="year-select"
+                                value={filterYear}
+                                onChange={(e) => setFilterYear(parseInt(e.target.value) || 0)}
+                            >
+                                <option value={0}>Semua Tahun</option>
+                                <option value={2026}>2026</option>
+                                <option value={2025}>2025</option>
+                                <option value={2024}>2024</option>
+                                <option value={2023}>2023</option>
+                                <option value={2022}>2022</option>
+                                <option value={2021}>2021</option>
+                                <option value={2020}>2020</option>
+                            </select>
                         </div>
 
                         <div className="action-row">
