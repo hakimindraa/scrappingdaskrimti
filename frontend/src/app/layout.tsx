@@ -8,9 +8,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Web Scraper - Extract Data from Any Website",
-  description: "A powerful web scraping tool built with Next.js and FastAPI. Extract titles, meta tags, links, images, and more from any website.",
-  keywords: "web scraper, data extraction, scraping tool, next.js, fastapi",
+  title: "Dasta - Deskripsi Data",
+  description: "Platform pengelolaan dan ekstraksi data terintegrasi untuk SIPEDE dan SPDP.",
+  keywords: "dasta, deskripsi data, sipede, spdp, data extraction",
 };
 
 export default function RootLayout({

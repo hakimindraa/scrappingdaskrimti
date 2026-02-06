@@ -1,4 +1,4 @@
 @echo off
 title Frontend - Port 3000
-cd /d "E:\porto\frontend"
+cd /d "C:\scrappingdaskrimti\frontend"
 npm run dev

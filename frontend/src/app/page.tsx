@@ -1,14 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import DashboardTab from '@/components/DashboardTab';
 import SipedeScraperTab from '@/components/SipedeScraperTab';
 import SppScraperTab from '@/components/SppScraperTab';
+import InsightTab from '@/components/InsightTab';
 
-type TabType = 'dashboard' | 'sipede' | 'spp';
+type TabType = 'dashboard' | 'sipede' | 'spp' | 'insight-sipede' | 'insight-spdp';
 
 export default function HomePage() {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+    const [scrappingMenuOpen, setScrappingMenuOpen] = useState(false);
+    const [insightMenuOpen, setInsightMenuOpen] = useState(false);
+    const scrappingDropdownRef = useRef<HTMLDivElement>(null);
+    const insightDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (scrappingDropdownRef.current && !scrappingDropdownRef.current.contains(event.target as Node)) {
+                setScrappingMenuOpen(false);
+            }
+            if (insightDropdownRef.current && !insightDropdownRef.current.contains(event.target as Node)) {
+                setInsightMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleScrappingSelect = (tab: 'sipede' | 'spp') => {
+        setActiveTab(tab);
+        setScrappingMenuOpen(false);
+    };
+
+    const handleInsightSelect = (tab: 'insight-sipede' | 'insight-spdp') => {
+        setActiveTab(tab);
+        setInsightMenuOpen(false);
+    };
 
     return (
         <div className="app-container">
@@ -17,12 +46,13 @@ export default function HomePage() {
                 <div className="header-content">
                     <div className="logo-section">
                         <svg className="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                            <line x1="16" y1="13" x2="8" y2="13" />
-                            <line x1="16" y1="17" x2="8" y2="17" />
+                            <path d="M3 3h18v18H3V3z" />
+                            <path d="M3 9h18" />
+                            <path d="M9 21V9" />
+                            <rect x="12" y="12" width="6" height="6" />
                         </svg>
-                        <h1>Web Scraper</h1>
+                        <h1>Dasta</h1>
+                        <span className="logo-subtitle">Deskripsi Data</span>
                     </div>
 
                     {/* Tab Switcher */}
@@ -39,27 +69,98 @@ export default function HomePage() {
                             </svg>
                             Dashboard
                         </button>
-                        <button
-                            className={`tab-btn ${activeTab === 'sipede' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('sipede')}
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M12 16v-4M12 8h.01" />
-                            </svg>
-                            SIPEDE
-                        </button>
-                        <button
-                            className={`tab-btn ${activeTab === 'spp' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('spp')}
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                <line x1="3" y1="9" x2="21" y2="9" />
-                                <line x1="9" y1="21" x2="9" y2="9" />
-                            </svg>
-                            SPDP
-                        </button>
+                        
+                        {/* Scrapping Dropdown Menu */}
+                        <div className="dropdown-container" ref={scrappingDropdownRef}>
+                            <button
+                                className={`tab-btn ${(activeTab === 'sipede' || activeTab === 'spp') ? 'active' : ''}`}
+                                onClick={() => setScrappingMenuOpen(!scrappingMenuOpen)}
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                </svg>
+                                Scrapping
+                                <svg className={`dropdown-arrow ${scrappingMenuOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </button>
+                            
+                            {scrappingMenuOpen && (
+                                <div className="dropdown-menu">
+                                    <button
+                                        className={`dropdown-item ${activeTab === 'sipede' ? 'active' : ''}`}
+                                        onClick={() => handleScrappingSelect('sipede')}
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <path d="M12 16v-4M12 8h.01" />
+                                        </svg>
+                                        SIPEDE
+                                    </button>
+                                    <button
+                                        className={`dropdown-item ${activeTab === 'spp' ? 'active' : ''}`}
+                                        onClick={() => handleScrappingSelect('spp')}
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                            <line x1="3" y1="9" x2="21" y2="9" />
+                                            <line x1="9" y1="21" x2="9" y2="9" />
+                                        </svg>
+                                        SPDP
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Insight Dropdown Menu */}
+                        <div className="dropdown-container" ref={insightDropdownRef}>
+                            <button
+                                className={`tab-btn ${(activeTab === 'insight-sipede' || activeTab === 'insight-spdp') ? 'active' : ''}`}
+                                onClick={() => setInsightMenuOpen(!insightMenuOpen)}
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                    <polyline points="7.5 4.21 12 6.81 16.5 4.21" />
+                                    <polyline points="7.5 19.79 7.5 14.6 3 12" />
+                                    <polyline points="21 12 16.5 14.6 16.5 19.79" />
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                                </svg>
+                                Insight
+                                <svg className={`dropdown-arrow ${insightMenuOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </button>
+                            
+                            {insightMenuOpen && (
+                                <div className="dropdown-menu">
+                                    <button
+                                        className={`dropdown-item ${activeTab === 'insight-sipede' ? 'active' : ''}`}
+                                        onClick={() => handleInsightSelect('insight-sipede')}
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <path d="M12 16v-4M12 8h.01" />
+                                        </svg>
+                                        SIPEDE
+                                    </button>
+                                    <button
+                                        className={`dropdown-item ${activeTab === 'insight-spdp' ? 'active' : ''}`}
+                                        onClick={() => handleInsightSelect('insight-spdp')}
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                            <line x1="3" y1="9" x2="21" y2="9" />
+                                            <line x1="9" y1="21" x2="9" y2="9" />
+                                        </svg>
+                                        SPDP
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </header>
@@ -69,6 +170,8 @@ export default function HomePage() {
                 {activeTab === 'dashboard' && <DashboardTab />}
                 {activeTab === 'sipede' && <SipedeScraperTab />}
                 {activeTab === 'spp' && <SppScraperTab />}
+                {activeTab === 'insight-sipede' && <InsightTab source="sipede" />}
+                {activeTab === 'insight-spdp' && <InsightTab source="spdp" />}
             </main>
 
             <style jsx>{`
@@ -120,6 +223,13 @@ export default function HomePage() {
                     letter-spacing: -0.5px;
                 }
 
+                .logo-subtitle {
+                    font-size: 0.75rem;
+                    color: rgba(255, 255, 255, 0.6);
+                    font-weight: 400;
+                    margin-left: -0.5rem;
+                }
+
                 .tab-switcher {
                     display: flex;
                     gap: 0.375rem;
@@ -156,6 +266,76 @@ export default function HomePage() {
                 }
 
                 .tab-btn svg {
+                    width: 18px;
+                    height: 18px;
+                }
+
+                .dropdown-arrow {
+                    width: 14px;
+                    height: 14px;
+                    transition: transform 0.2s ease;
+                }
+
+                .dropdown-arrow.open {
+                    transform: rotate(180deg);
+                }
+
+                .dropdown-container {
+                    position: relative;
+                }
+
+                .dropdown-menu {
+                    position: absolute;
+                    top: calc(100% + 8px);
+                    left: 0;
+                    min-width: 160px;
+                    background: white;
+                    border-radius: 12px;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    padding: 0.5rem;
+                    z-index: 200;
+                    animation: dropdownFade 0.2s ease;
+                }
+
+                @keyframes dropdownFade {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-8px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                .dropdown-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    background: transparent;
+                    border: none;
+                    border-radius: 8px;
+                    color: #374151;
+                    font-size: 0.9rem;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    text-align: left;
+                }
+
+                .dropdown-item:hover {
+                    background: #f0fdf4;
+                    color: #064e3b;
+                }
+
+                .dropdown-item.active {
+                    background: #ecfdf5;
+                    color: #064e3b;
+                }
+
+                .dropdown-item svg {
                     width: 18px;
                     height: 18px;
                 }

@@ -161,3 +161,25 @@ export async function getDataInfo(): Promise<DataInfo> {
     const response = await fetch(`${SPP_API_URL}/api/scraper/data-info`);
     return response.json();
 }
+
+// Get all data for insights (no pagination limit)
+export async function getAllDataForInsights(): Promise<{ success: boolean; data: Record<string, string>[]; headers?: string[] }> {
+    // First get data info to know total count
+    const info = await getDataInfo();
+    if (!info.exists || info.row_count === 0) {
+        return { success: false, data: [] };
+    }
+
+    // Fetch all data with high limit
+    const response = await fetch(`${SPP_API_URL}/api/scraper/data?page=1&limit=${info.row_count + 100}`);
+    const result = await response.json();
+    
+    // Extract headers from first data item
+    const headers = result.data && result.data.length > 0 ? Object.keys(result.data[0]) : [];
+    
+    return {
+        success: result.success,
+        data: result.data || [],
+        headers
+    };
+}
