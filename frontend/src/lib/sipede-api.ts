@@ -89,37 +89,43 @@ export interface DetectTableResponse {
     message?: string;
 }
 
-// API Configuration
-const SIPEDE_API_URL = process.env.NEXT_PUBLIC_SIPEDE_API_URL || 'http://localhost:5000';
+// API Configuration - dynamically use same hostname as browser
+function getApiBaseUrl(): string {
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        return `http://${hostname}:5000`;
+    }
+    return process.env.NEXT_PUBLIC_SIPEDE_API_URL || 'http://localhost:5000';
+}
 
 // API Functions
 
 export async function openBrowser(): Promise<ApiResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/open`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/open`, {
         method: 'POST',
     });
     return response.json();
 }
 
 export async function getStatus(): Promise<StatusResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/status`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/status`);
     return response.json();
 }
 
 export async function checkLoginAndNavigate(): Promise<CheckLoginResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/check-login`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/check-login`, {
         method: 'POST',
     });
     return response.json();
 }
 
 export async function getAvailableYears(): Promise<YearsResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/years`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/years`);
     return response.json();
 }
 
 export async function changeYear(year: string): Promise<ApiResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/change-year`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/change-year`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year }),
@@ -128,7 +134,7 @@ export async function changeYear(year: string): Promise<ApiResponse> {
 }
 
 export async function setEntriesPerPage(entries: number): Promise<ApiResponse & { entriesPerPage?: number }> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/set-entries-per-page`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/set-entries-per-page`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ entries }),
@@ -137,7 +143,7 @@ export async function setEntriesPerPage(entries: number): Promise<ApiResponse & 
 }
 
 export async function navigateTo(url: string): Promise<ApiResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/navigate`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/navigate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
@@ -146,12 +152,12 @@ export async function navigateTo(url: string): Promise<ApiResponse> {
 }
 
 export async function detectTable(): Promise<DetectTableResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/detect-table`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/detect-table`);
     return response.json();
 }
 
 export async function startScraping(maxPages: number = 0): Promise<ApiResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/scrape`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/scrape`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ maxPages }),
@@ -160,7 +166,7 @@ export async function startScraping(maxPages: number = 0): Promise<ApiResponse> 
 }
 
 export async function closeBrowser(): Promise<ApiResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/close`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/close`, {
         method: 'POST',
     });
     return response.json();
@@ -176,24 +182,24 @@ export async function getData(page: number = 1, limit: number = 10, search: stri
         params.append('search', search);
     }
 
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/data?${params}`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/data?${params}`);
     return response.json();
 }
 
 export function getExportJsonUrl(): string {
-    return `${SIPEDE_API_URL}/api/scraper/export/json`;
+    return `${getApiBaseUrl()}/api/scraper/export/json`;
 }
 
 export function getExportCsvUrl(): string {
-    return `${SIPEDE_API_URL}/api/scraper/export/csv`;
+    return `${getApiBaseUrl()}/api/scraper/export/csv`;
 }
 
 export function getExportExcelUrl(): string {
-    return `${SIPEDE_API_URL}/api/scraper/export/excel`;
+    return `${getApiBaseUrl()}/api/scraper/export/excel`;
 }
 
 export async function clearData(): Promise<ApiResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/clear`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/clear`, {
         method: 'POST',
     });
     return response.json();
@@ -213,7 +219,7 @@ export interface DataInfo {
 }
 
 export async function getDataInfo(): Promise<DataInfo> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/data-info`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/data-info`);
     return response.json();
 }
 
@@ -236,12 +242,12 @@ export interface ActivityLogsResponse {
 }
 
 export async function getActivityLogs(limit: number = 50): Promise<ActivityLogsResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/activity?limit=${limit}`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/activity?limit=${limit}`);
     return response.json();
 }
 
 export async function addActivityLog(type: ActivityLog['type'], message: string, source: string): Promise<ApiResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/activity`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/activity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, message, source }),
@@ -250,7 +256,7 @@ export async function addActivityLog(type: ActivityLog['type'], message: string,
 }
 
 export async function clearActivityLogs(): Promise<ApiResponse> {
-    const response = await fetch(`${SIPEDE_API_URL}/api/scraper/activity`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/activity`, {
         method: 'DELETE',
     });
     return response.json();

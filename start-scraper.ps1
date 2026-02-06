@@ -95,11 +95,21 @@ $sipedeBat = Join-Path $scriptDir "_run_sipede.bat"
 $sppBat = Join-Path $scriptDir "_run_spp.bat"
 $frontendBat = Join-Path $scriptDir "_run_frontend.bat"
 
+# Get local IP address
+$localIP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -like "*Wi-Fi*" -and $_.PrefixOrigin -eq "Dhcp" }).IPAddress
+if (-not $localIP) {
+    $localIP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq "Dhcp" } | Select-Object -First 1).IPAddress
+}
+if (-not $localIP) {
+    $localIP = "localhost"
+}
+
 # SIPEDE Backend batch
 @"
 @echo off
 title SIPEDE Backend - Port 5000
 cd /d "$scriptDir\sipede-scraper\backend"
+set HOST=0.0.0.0
 npm start
 "@ | Out-File -FilePath $sipedeBat -Encoding ASCII
 
@@ -109,7 +119,7 @@ npm start
 title SPP Backend - Port 5001
 cd /d "$scriptDir\spp-scraper"
 call venv\Scripts\activate.bat
-uvicorn app.main:app --reload --port 5001
+uvicorn app.main:app --reload --host 0.0.0.0 --port 5001
 "@ | Out-File -FilePath $sppBat -Encoding ASCII
 
 # Frontend batch
@@ -117,7 +127,7 @@ uvicorn app.main:app --reload --port 5001
 @echo off
 title Frontend - Port 3000
 cd /d "$scriptDir\frontend"
-npm run dev
+npm run dev -- -H 0.0.0.0
 "@ | Out-File -FilePath $frontendBat -Encoding ASCII
 
 # Start services
@@ -151,9 +161,15 @@ Write-Color "============================================" "Cyan"
 Write-Color "  SEMUA SERVICES BERJALAN!" "Green"
 Write-Color "============================================" "Cyan"
 Write-Host ""
-Write-Color "  Frontend:       http://localhost:3000" "White"
-Write-Color "  SIPEDE Backend: http://localhost:5000" "White"
-Write-Color "  SPP Backend:    http://localhost:5001" "White"
+Write-Color "  Akses Lokal (laptop ini):" "Yellow"
+Write-Color "    Frontend:       http://localhost:3000" "White"
+Write-Color "    SIPEDE Backend: http://localhost:5000" "White"
+Write-Color "    SPP Backend:    http://localhost:5001" "White"
+Write-Host ""
+Write-Color "  Akses dari Laptop Lain (WiFi sama):" "Yellow"
+Write-Color "    Frontend:       http://${localIP}:3000" "Magenta"
+Write-Color "    SIPEDE Backend: http://${localIP}:5000" "Magenta"
+Write-Color "    SPP Backend:    http://${localIP}:5001" "Magenta"
 Write-Host ""
 Write-Color "============================================" "Yellow"
 Write-Color "  Tekan ENTER untuk STOP semua services" "Yellow"

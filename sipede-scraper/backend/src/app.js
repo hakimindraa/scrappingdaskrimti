@@ -7,24 +7,11 @@ const scraperRoutes = require('./routes/scraperRoutes');
 
 const app = express();
 
-// Parse CORS origins from environment variable (comma separated)
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
-    .split(',')
-    .map(origin => origin.trim());
-
 // Middleware
 app.use(helmet());
+// Allow all origins for local network access
 app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
+    origin: true, // Allow all origins
     credentials: true
 }));
 app.use(morgan('combined'));

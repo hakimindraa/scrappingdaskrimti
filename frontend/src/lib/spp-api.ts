@@ -61,25 +61,31 @@ export interface DetectTableResponse {
     message?: string;
 }
 
-// API Configuration
-const SPP_API_URL = process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001';
+// API Configuration - dynamically use same hostname as browser
+function getApiBaseUrl(): string {
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        return `http://${hostname}:5001`;
+    }
+    return process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001';
+}
 
 // API Functions
 
 export async function openBrowser(): Promise<ApiResponse> {
-    const response = await fetch(`${SPP_API_URL}/api/scraper/open`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/open`, {
         method: 'POST',
     });
     return response.json();
 }
 
 export async function getStatus(): Promise<StatusResponse> {
-    const response = await fetch(`${SPP_API_URL}/api/scraper/status`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/status`);
     return response.json();
 }
 
 export async function navigateTo(url: string): Promise<ApiResponse> {
-    const response = await fetch(`${SPP_API_URL}/api/scraper/navigate`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/navigate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
@@ -88,12 +94,12 @@ export async function navigateTo(url: string): Promise<ApiResponse> {
 }
 
 export async function detectTable(): Promise<DetectTableResponse> {
-    const response = await fetch(`${SPP_API_URL}/api/scraper/detect-table`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/detect-table`);
     return response.json();
 }
 
 export async function startScraping(startPage: number = 1, endPage: number = 0, filterYear: number = 0): Promise<ApiResponse> {
-    const response = await fetch(`${SPP_API_URL}/api/scraper/start`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ start_page: startPage, end_page: endPage, filter_year: filterYear }),
@@ -102,14 +108,14 @@ export async function startScraping(startPage: number = 1, endPage: number = 0, 
 }
 
 export async function stopScraping(): Promise<ApiResponse> {
-    const response = await fetch(`${SPP_API_URL}/api/scraper/stop`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/stop`, {
         method: 'POST',
     });
     return response.json();
 }
 
 export async function closeBrowser(): Promise<ApiResponse> {
-    const response = await fetch(`${SPP_API_URL}/api/scraper/close`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/close`, {
         method: 'POST',
     });
     return response.json();
@@ -121,27 +127,27 @@ export async function getData(page: number = 1, limit: number = 10, search: stri
         limit: limit.toString(),
         search: search,
     });
-    const response = await fetch(`${SPP_API_URL}/api/scraper/data?${params}`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/data?${params}`);
     return response.json();
 }
 
 export async function clearData(): Promise<ApiResponse> {
-    const response = await fetch(`${SPP_API_URL}/api/scraper/clear`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/clear`, {
         method: 'POST',
     });
     return response.json();
 }
 
 export function getExportCsvUrl(): string {
-    return `${SPP_API_URL}/api/scraper/export/csv`;
+    return `${getApiBaseUrl()}/api/scraper/export/csv`;
 }
 
 export function getExportJsonUrl(): string {
-    return `${SPP_API_URL}/api/scraper/export/json`;
+    return `${getApiBaseUrl()}/api/scraper/export/json`;
 }
 
 export function getExportExcelUrl(): string {
-    return `${SPP_API_URL}/api/scraper/export/excel`;
+    return `${getApiBaseUrl()}/api/scraper/export/excel`;
 }
 
 // ============================================
@@ -158,7 +164,7 @@ export interface DataInfo {
 }
 
 export async function getDataInfo(): Promise<DataInfo> {
-    const response = await fetch(`${SPP_API_URL}/api/scraper/data-info`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/data-info`);
     return response.json();
 }
 
@@ -171,7 +177,7 @@ export async function getAllDataForInsights(): Promise<{ success: boolean; data:
     }
 
     // Fetch all data with high limit
-    const response = await fetch(`${SPP_API_URL}/api/scraper/data?page=1&limit=${info.row_count + 100}`);
+    const response = await fetch(`${getApiBaseUrl()}/api/scraper/data?page=1&limit=${info.row_count + 100}`);
     const result = await response.json();
     
     // Extract headers from first data item
