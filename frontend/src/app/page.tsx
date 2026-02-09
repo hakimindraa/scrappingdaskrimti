@@ -5,15 +5,18 @@ import DashboardTab from '@/components/DashboardTab';
 import SipedeScraperTab from '@/components/SipedeScraperTab';
 import SppScraperTab from '@/components/SppScraperTab';
 import InsightTab from '@/components/InsightTab';
+import DataWorkspace from '@/components/DataWorkspace';
 
-type TabType = 'dashboard' | 'sipede' | 'spp' | 'insight-sipede' | 'insight-spdp';
+type TabType = 'dashboard' | 'sipede' | 'spp' | 'insight-sipede' | 'insight-spdp' | 'workspace-sipede' | 'workspace-spdp';
 
 export default function HomePage() {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [scrappingMenuOpen, setScrappingMenuOpen] = useState(false);
     const [insightMenuOpen, setInsightMenuOpen] = useState(false);
+    const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
     const scrappingDropdownRef = useRef<HTMLDivElement>(null);
     const insightDropdownRef = useRef<HTMLDivElement>(null);
+    const workspaceDropdownRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -23,6 +26,9 @@ export default function HomePage() {
             }
             if (insightDropdownRef.current && !insightDropdownRef.current.contains(event.target as Node)) {
                 setInsightMenuOpen(false);
+            }
+            if (workspaceDropdownRef.current && !workspaceDropdownRef.current.contains(event.target as Node)) {
+                setWorkspaceMenuOpen(false);
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
@@ -37,6 +43,11 @@ export default function HomePage() {
     const handleInsightSelect = (tab: 'insight-sipede' | 'insight-spdp') => {
         setActiveTab(tab);
         setInsightMenuOpen(false);
+    };
+
+    const handleWorkspaceSelect = (tab: 'workspace-sipede' | 'workspace-spdp') => {
+        setActiveTab(tab);
+        setWorkspaceMenuOpen(false);
     };
 
     return (
@@ -115,6 +126,50 @@ export default function HomePage() {
                             )}
                         </div>
 
+                        {/* Workspace Dropdown Menu */}
+                        <div className="dropdown-container" ref={workspaceDropdownRef}>
+                            <button
+                                className={`tab-btn ${(activeTab === 'workspace-sipede' || activeTab === 'workspace-spdp') ? 'active' : ''}`}
+                                onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <line x1="3" y1="9" x2="21" y2="9" />
+                                    <line x1="9" y1="21" x2="9" y2="9" />
+                                </svg>
+                                Workspace
+                                <svg className={`dropdown-arrow ${workspaceMenuOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </button>
+                            
+                            {workspaceMenuOpen && (
+                                <div className="dropdown-menu">
+                                    <button
+                                        className={`dropdown-item ${activeTab === 'workspace-sipede' ? 'active' : ''}`}
+                                        onClick={() => handleWorkspaceSelect('workspace-sipede')}
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <path d="M12 16v-4M12 8h.01" />
+                                        </svg>
+                                        SIPEDE
+                                    </button>
+                                    <button
+                                        className={`dropdown-item ${activeTab === 'workspace-spdp' ? 'active' : ''}`}
+                                        onClick={() => handleWorkspaceSelect('workspace-spdp')}
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                            <line x1="3" y1="9" x2="21" y2="9" />
+                                            <line x1="9" y1="21" x2="9" y2="9" />
+                                        </svg>
+                                        SPDP
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
                         {/* Insight Dropdown Menu */}
                         <div className="dropdown-container" ref={insightDropdownRef}>
                             <button
@@ -172,6 +227,8 @@ export default function HomePage() {
                 {activeTab === 'spp' && <SppScraperTab />}
                 {activeTab === 'insight-sipede' && <InsightTab source="sipede" />}
                 {activeTab === 'insight-spdp' && <InsightTab source="spdp" />}
+                {activeTab === 'workspace-sipede' && <DataWorkspace source="sipede" />}
+                {activeTab === 'workspace-spdp' && <DataWorkspace source="spdp" />}
             </main>
 
             <style jsx>{`

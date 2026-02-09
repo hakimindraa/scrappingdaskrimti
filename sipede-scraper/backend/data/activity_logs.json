@@ -1,19 +1,4 @@
 {
-  "logs": [
-    {
-      "id": 2,
-      "type": "success",
-      "message": "Scraping selesai - 48 data dari 4 halaman",
-      "source": "SPDP",
-      "created_at": "2026-02-05T04:18:31.928Z"
-    },
-    {
-      "id": 1,
-      "type": "info",
-      "message": "Scraping dimulai (dari halaman 1 tahun 2026)",
-      "source": "SPDP",
-      "created_at": "2026-02-05T03:47:44.899Z"
-    }
-  ],
-  "lastId": 2
+  "logs": [],
+  "lastId": 0
 }
