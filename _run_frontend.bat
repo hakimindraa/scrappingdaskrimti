@@ -1,6 +1,6 @@
 @echo off
 title Frontend - Port 3000 (Production)
-cd /d "C:\Users\akem\Music\scrappingdaskrimti\frontend"
+cd /d "C:\scrappingdaskrimti\frontend"
 echo Building production...
 call npm run build
 echo Starting production server...

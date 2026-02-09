@@ -52,17 +52,38 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
     
     // Print ref
     const printRef = useRef<HTMLDivElement>(null);
+    
+    // Toast notification
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     const sourceTitle = source === 'sipede' ? 'SIPEDE' : 'SPDP';
     const sourceColor = source === 'sipede' ? '#0ea5e9' : '#8b5cf6';
-    const apiUrl = source === 'spdp' ? 'http://localhost:5001' : 'http://localhost:5000';
+    
+    // Dynamic API URL - use current hostname for external IP access
+    const getApiUrl = useCallback(() => {
+        if (typeof window === 'undefined') return source === 'spdp' ? 'http://localhost:5001' : 'http://localhost:5000';
+        const hostname = window.location.hostname;
+        const port = source === 'spdp' ? '5001' : '5000';
+        return `http://${hostname}:${port}`;
+    }, [source]);
+    
+    const showToast = useCallback((message: string, type: 'success' | 'error') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    }, []);
 
     // Load data from API
     const loadFromApi = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
+            const apiUrl = getApiUrl();
             const infoRes = await fetch(`${apiUrl}/api/scraper/data-info`);
+            
+            if (!infoRes.ok) {
+                throw new Error(`Server error: ${infoRes.status}`);
+            }
+            
             const info = await infoRes.json();
             
             if (!info.exists || info.row_count === 0) {
@@ -71,21 +92,28 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
             }
 
             const dataRes = await fetch(`${apiUrl}/api/scraper/data?page=1&limit=${info.row_count + 100}`);
+            
+            if (!dataRes.ok) {
+                throw new Error(`Server error: ${dataRes.status}`);
+            }
+            
             const result = await dataRes.json();
             
             if (result.success && result.data && result.data.length > 0) {
                 setData(result.data);
                 setHeaders(Object.keys(result.data[0]));
                 setFileName(`Data ${sourceTitle} (${result.data.length} records)`);
+                showToast(`Berhasil memuat ${result.data.length} data`, 'success');
             } else {
                 setError('Gagal memuat data dari server');
             }
-        } catch {
-            setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Unknown error';
+            setError(`Tidak dapat terhubung ke server: ${message}`);
         } finally {
             setIsLoading(false);
         }
-    }, [apiUrl, sourceTitle]);
+    }, [getApiUrl, sourceTitle, showToast]);
 
     // Load from Excel file
     const loadFromFile = useCallback(async (file: File) => {
@@ -177,7 +205,7 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
         return filteredData.slice(start, start + rowsPerPage);
     }, [filteredData, currentPage, rowsPerPage]);
 
-    const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+    const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
 
     // Column Statistics
     const columnStats = useMemo((): ColumnStats[] => {
@@ -215,42 +243,92 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
 
     // Export Functions
     const exportToExcel = () => {
-        const ws = XLSX.utils.json_to_sheet(filteredData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Data');
-        XLSX.writeFile(wb, `${sourceTitle}_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+        if (filteredData.length === 0) {
+            showToast('Tidak ada data untuk di-export', 'error');
+            return;
+        }
+        try {
+            const exportData = filteredData.map(row => {
+                const newRow: Record<string, unknown> = {};
+                headers.forEach(h => {
+                    newRow[h] = row[h] ?? '';
+                });
+                return newRow;
+            });
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Data');
+            XLSX.writeFile(wb, `${sourceTitle}_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+            showToast(`Berhasil export ${filteredData.length} data ke Excel`, 'success');
+        } catch (err) {
+            console.error('Export Excel error:', err);
+            showToast('Gagal export ke Excel', 'error');
+        }
     };
 
     const exportToCsv = () => {
-        const ws = XLSX.utils.json_to_sheet(filteredData);
-        const csv = XLSX.utils.sheet_to_csv(ws);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `${sourceTitle}_Export_${new Date().toISOString().split('T')[0]}.csv`;
-        link.click();
+        if (filteredData.length === 0) {
+            showToast('Tidak ada data untuk di-export', 'error');
+            return;
+        }
+        try {
+            const exportData = filteredData.map(row => {
+                const newRow: Record<string, unknown> = {};
+                headers.forEach(h => {
+                    newRow[h] = row[h] ?? '';
+                });
+                return newRow;
+            });
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const csv = XLSX.utils.sheet_to_csv(ws);
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel compatibility
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${sourceTitle}_Export_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            showToast(`Berhasil export ${filteredData.length} data ke CSV`, 'success');
+        } catch (err) {
+            console.error('Export CSV error:', err);
+            showToast('Gagal export ke CSV', 'error');
+        }
     };
 
     const exportToPdf = () => {
-        const printContent = `
+        if (filteredData.length === 0) {
+            showToast('Tidak ada data untuk di-export', 'error');
+            return;
+        }
+        try {
+            // Escape HTML entities untuk keamanan
+            const escapeHtml = (str: unknown) => {
+                const s = String(str ?? '-');
+                return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            };
+            
+            const printContent = `
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
                 <title>Laporan ${sourceTitle}</title>
                 <style>
                     body { font-family: Arial, sans-serif; padding: 20px; }
                     h1 { color: #1e293b; border-bottom: 2px solid ${sourceColor}; padding-bottom: 10px; }
-                    .summary { display: flex; gap: 20px; margin: 20px 0; }
+                    .summary { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }
                     .summary-card { background: #f8fafc; padding: 15px; border-radius: 8px; min-width: 120px; }
                     .summary-card .value { font-size: 24px; font-weight: bold; color: ${sourceColor}; }
                     .summary-card .label { font-size: 12px; color: #64748b; }
                     table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
-                    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+                    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; word-wrap: break-word; }
                     th { background: ${sourceColor}; color: white; }
                     tr:nth-child(even) { background: #f8fafc; }
                     .status-summary { margin: 20px 0; }
-                    .status-item { display: inline-block; margin-right: 15px; padding: 5px 10px; background: #f1f5f9; border-radius: 4px; }
+                    .status-item { display: inline-block; margin-right: 15px; margin-bottom: 5px; padding: 5px 10px; background: #f1f5f9; border-radius: 4px; }
                     .footer { margin-top: 30px; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+                    @media print { body { padding: 0; } }
                 </style>
             </head>
             <body>
@@ -263,16 +341,16 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 ${statusSummary ? `
                 <div class="status-summary">
                     <strong>Ringkasan Status:</strong><br>
-                    ${statusSummary.map(s => `<span class="status-item">${s.status}: ${s.count} (${s.percentage}%)</span>`).join('')}
+                    ${statusSummary.map(s => `<span class="status-item">${escapeHtml(s.status)}: ${s.count} (${s.percentage}%)</span>`).join('')}
                 </div>
                 ` : ''}
                 <table>
-                    <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-                    <tbody>${filteredData.slice(0, 100).map(row => 
-                        `<tr>${headers.map(h => `<td>${row[h] || '-'}</td>`).join('')}</tr>`
+                    <thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+                    <tbody>${filteredData.slice(0, 500).map(row => 
+                        `<tr>${headers.map(h => `<td>${escapeHtml(row[h])}</td>`).join('')}</tr>`
                     ).join('')}</tbody>
                 </table>
-                ${filteredData.length > 100 ? `<p><em>Menampilkan 100 dari ${filteredData.length} data</em></p>` : ''}
+                ${filteredData.length > 500 ? `<p><em>Menampilkan 500 dari ${filteredData.length} data</em></p>` : ''}
                 <div class="footer">
                     Digenerate oleh Dasta - ${new Date().toLocaleString('id-ID')}
                 </div>
@@ -284,13 +362,41 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
             printWindow.document.write(printContent);
             printWindow.document.close();
             printWindow.print();
+            showToast('Dokumen PDF siap diprint', 'success');
+        } else {
+            showToast('Popup diblokir. Izinkan popup untuk export PDF.', 'error');
+        }
+        } catch (err) {
+            console.error('Export PDF error:', err);
+            showToast('Gagal membuat PDF', 'error');
         }
     };
 
-    const copyToClipboard = () => {
-        const text = filteredData.map(row => headers.map(h => row[h]).join('\t')).join('\n');
-        navigator.clipboard.writeText(headers.join('\t') + '\n' + text);
-        alert('Data berhasil disalin ke clipboard!');
+    const copyToClipboard = async () => {
+        if (filteredData.length === 0) {
+            showToast('Tidak ada data untuk disalin', 'error');
+            return;
+        }
+        try {
+            const text = filteredData.map(row => headers.map(h => String(row[h] ?? '')).join('\t')).join('\n');
+            const fullText = headers.join('\t') + '\n' + text;
+            await navigator.clipboard.writeText(fullText);
+            showToast(`${filteredData.length} data berhasil disalin ke clipboard!`, 'success');
+        } catch (err) {
+            console.error('Copy clipboard error:', err);
+            // Fallback untuk browser yang tidak support clipboard API
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = headers.join('\t') + '\n' + filteredData.map(row => headers.map(h => String(row[h] ?? '')).join('\t')).join('\n');
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast(`${filteredData.length} data berhasil disalin ke clipboard!`, 'success');
+            } catch {
+                showToast('Gagal menyalin ke clipboard', 'error');
+            }
+        }
     };
 
     // Add filter
@@ -322,24 +428,37 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
         });
     };
 
-    // Row selection
-    const toggleRowSelection = (index: number) => {
+    // Row selection - use actual data index (global), not page index
+    const toggleRowSelection = (globalIndex: number) => {
         const newSelected = new Set(selectedRows);
-        if (newSelected.has(index)) {
-            newSelected.delete(index);
+        if (newSelected.has(globalIndex)) {
+            newSelected.delete(globalIndex);
         } else {
-            newSelected.add(index);
+            newSelected.add(globalIndex);
         }
         setSelectedRows(newSelected);
     };
 
     const toggleSelectAll = () => {
-        if (selectedRows.size === paginatedData.length) {
-            setSelectedRows(new Set());
+        const startIdx = (currentPage - 1) * rowsPerPage;
+        const pageIndices = paginatedData.map((_, i) => startIdx + i);
+        const allSelected = pageIndices.every(idx => selectedRows.has(idx));
+        
+        const newSelected = new Set(selectedRows);
+        if (allSelected) {
+            pageIndices.forEach(idx => newSelected.delete(idx));
         } else {
-            setSelectedRows(new Set(paginatedData.map((_, i) => i)));
+            pageIndices.forEach(idx => newSelected.add(idx));
         }
+        setSelectedRows(newSelected);
     };
+    
+    // Check if all current page rows are selected
+    const isAllPageSelected = useMemo(() => {
+        if (paginatedData.length === 0) return false;
+        const startIdx = (currentPage - 1) * rowsPerPage;
+        return paginatedData.every((_, i) => selectedRows.has(startIdx + i));
+    }, [paginatedData, currentPage, rowsPerPage, selectedRows]);
 
     // Clear data
     const clearData = () => {
@@ -355,6 +474,17 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
     if (data.length === 0) {
         return (
             <div className="workspace-container">
+                {/* Toast Notification */}
+                {toast && (
+                    <div className={`toast ${toast.type}`}>
+                        {toast.type === 'success' ? (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                        ) : (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                        )}
+                        <span>{toast.message}</span>
+                    </div>
+                )}
                 <div className="upload-section">
                     <div className="upload-header">
                         <div className="upload-icon" style={{ background: `${sourceColor}20`, color: sourceColor }}>
@@ -414,7 +544,12 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 </div>
 
                 <style jsx>{`
-                    .workspace-container { padding: 2rem; min-height: calc(100vh - 80px); }
+                    .workspace-container { padding: 2rem; min-height: calc(100vh - 80px); position: relative; }
+                    .toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.25rem; border-radius: 10px; font-size: 0.9rem; font-weight: 500; z-index: 1000; animation: toastSlide 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+                    .toast.success { background: #dcfce7; color: #166534; }
+                    .toast.error { background: #fef2f2; color: #dc2626; }
+                    .toast svg { width: 18px; height: 18px; }
+                    @keyframes toastSlide { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
                     .upload-section { max-width: 600px; margin: 3rem auto; text-align: center; }
                     .upload-header { margin-bottom: 2rem; }
                     .upload-icon { width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
@@ -445,6 +580,18 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
 
     return (
         <div className="workspace-container" ref={printRef}>
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`toast ${toast.type}`}>
+                    {toast.type === 'success' ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                    ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                    )}
+                    <span>{toast.message}</span>
+                </div>
+            )}
+            
             {/* Toolbar */}
             <div className="toolbar">
                 <div className="toolbar-left">
@@ -483,18 +630,44 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
                     Filter {filters.length > 0 && `(${filters.length})`}
                 </button>
-                <div className="export-dropdown">
-                    <button className="export-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-                        Export
-                    </button>
-                    <div className="export-menu">
-                        <button onClick={exportToExcel}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>Excel (.xlsx)</button>
-                        <button onClick={exportToCsv}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>CSV (.csv)</button>
-                        <button onClick={exportToPdf}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>PDF / Print</button>
-                        <button onClick={copyToClipboard}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>Copy to Clipboard</button>
-                    </div>
-                </div>
+            </div>
+
+            {/* Export Buttons Row */}
+            <div className="export-row">
+                <span className="export-label">Export:</span>
+                <button className="export-btn-item excel" onClick={exportToExcel} title="Export ke Excel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <path d="M8 13h2l2 3 2-6 2 3h2" />
+                    </svg>
+                    <span>Excel</span>
+                </button>
+                <button className="export-btn-item csv" onClick={exportToCsv} title="Export ke CSV">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="8" y1="13" x2="16" y2="13" />
+                        <line x1="8" y1="17" x2="16" y2="17" />
+                    </svg>
+                    <span>CSV</span>
+                </button>
+                <button className="export-btn-item pdf" onClick={exportToPdf} title="Export ke PDF / Print">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <path d="M9 15h6" />
+                        <path d="M9 11h6" />
+                    </svg>
+                    <span>PDF</span>
+                </button>
+                <button className="export-btn-item copy" onClick={copyToClipboard} title="Salin ke Clipboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    <span>Copy</span>
+                </button>
             </div>
 
             {/* Filter Panel */}
@@ -605,7 +778,7 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                             <thead>
                                 <tr>
                                     <th className="checkbox-col">
-                                        <input type="checkbox" checked={selectedRows.size === paginatedData.length && paginatedData.length > 0} onChange={toggleSelectAll} />
+                                        <input type="checkbox" checked={isAllPageSelected} onChange={toggleSelectAll} />
                                     </th>
                                     <th className="row-num-col">#</th>
                                     {headers.map(header => (
@@ -619,17 +792,31 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {paginatedData.map((row, rowIdx) => (
-                                    <tr key={rowIdx} className={selectedRows.has(rowIdx) ? 'selected' : ''}>
-                                        <td className="checkbox-col">
-                                            <input type="checkbox" checked={selectedRows.has(rowIdx)} onChange={() => toggleRowSelection(rowIdx)} />
+                                {paginatedData.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={headers.length + 2} className="empty-state">
+                                            <div className="empty-content">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                                                <span>Tidak ada data yang cocok dengan filter</span>
+                                            </div>
                                         </td>
-                                        <td className="row-num-col">{(currentPage - 1) * rowsPerPage + rowIdx + 1}</td>
+                                    </tr>
+                                ) : (
+                                paginatedData.map((row, rowIdx) => {
+                                    const globalIdx = (currentPage - 1) * rowsPerPage + rowIdx;
+                                    return (
+                                    <tr key={rowIdx} className={selectedRows.has(globalIdx) ? 'selected' : ''}>
+                                        <td className="checkbox-col">
+                                            <input type="checkbox" checked={selectedRows.has(globalIdx)} onChange={() => toggleRowSelection(globalIdx)} />
+                                        </td>
+                                        <td className="row-num-col">{globalIdx + 1}</td>
                                         {headers.map((header, colIdx) => (
                                             <td key={colIdx}>{String(row[header] ?? '-')}</td>
                                         ))}
                                     </tr>
-                                ))}
+                                    );
+                                })
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -637,7 +824,9 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                     {/* Pagination */}
                     <div className="pagination">
                         <div className="pagination-info">
-                            Menampilkan {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredData.length)} dari {filteredData.length}
+                            {filteredData.length > 0 
+                                ? `Menampilkan ${(currentPage - 1) * rowsPerPage + 1} - ${Math.min(currentPage * rowsPerPage, filteredData.length)} dari ${filteredData.length}`
+                                : 'Tidak ada data yang cocok'}
                         </div>
                         <div className="pagination-controls">
                             <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}>
@@ -649,15 +838,21 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                             <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</button>
                             <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>‹</button>
                             <span>Hal {currentPage} / {totalPages}</span>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>›</button>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</button>
+                            <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>›</button>
+                            <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(totalPages)}>»</button>
                         </div>
                     </div>
                 </>
             )}
 
             <style jsx>{`
-                .workspace-container { padding: 1.5rem; min-height: calc(100vh - 80px); }
+                .workspace-container { padding: 1.5rem; min-height: calc(100vh - 80px); position: relative; }
+                
+                .toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.25rem; border-radius: 10px; font-size: 0.9rem; font-weight: 500; z-index: 1000; animation: slideIn 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+                .toast.success { background: #dcfce7; color: #166534; }
+                .toast.error { background: #fef2f2; color: #dc2626; }
+                .toast svg { width: 18px; height: 18px; }
+                @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
                 
                 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
                 .toolbar-left { display: flex; align-items: center; gap: 1rem; }
@@ -681,14 +876,19 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 .filter-toggle[data-active="true"] { background: ${sourceColor}10; border-color: ${sourceColor}; color: ${sourceColor}; }
                 .filter-toggle svg { width: 16px; height: 16px; }
                 
-                .export-dropdown { position: relative; }
-                .export-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; background: ${sourceColor}; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 500; }
-                .export-btn svg { width: 16px; height: 16px; }
-                .export-menu { position: absolute; top: 100%; right: 0; margin-top: 0.5rem; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); padding: 0.5rem; min-width: 180px; z-index: 100; display: none; }
-                .export-dropdown:hover .export-menu { display: block; }
-                .export-menu button { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.625rem 0.875rem; border: none; background: transparent; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: #374151; text-align: left; }
-                .export-menu button:hover { background: #f1f5f9; }
-                .export-menu button svg { width: 16px; height: 16px; color: #64748b; }
+                .export-row { display: flex; align-items: center; gap: 0.5rem; }
+                .export-label { font-size: 0.85rem; color: #64748b; font-weight: 500; margin-right: 0.25rem; }
+                .export-btn-item { display: flex; align-items: center; gap: 0.375rem; padding: 0.5rem 0.875rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 500; color: white; transition: all 0.2s; }
+                .export-btn-item svg { width: 14px; height: 14px; }
+                .export-btn-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+                .export-btn-item.excel { background: #16a34a; }
+                .export-btn-item.excel:hover { background: #15803d; }
+                .export-btn-item.csv { background: #2563eb; }
+                .export-btn-item.csv:hover { background: #1d4ed8; }
+                .export-btn-item.pdf { background: #dc2626; }
+                .export-btn-item.pdf:hover { background: #b91c1c; }
+                .export-btn-item.copy { background: #7c3aed; }
+                .export-btn-item.copy:hover { background: #6d28d9; }
 
                 .filter-panel { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
                 .filter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
@@ -743,6 +943,9 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 .row-num-col { width: 50px; color: #94a3b8; font-size: 0.8rem; }
                 tr:hover td { background: #f8fafc; }
                 tr.selected td { background: ${sourceColor}10; }
+                .empty-state { text-align: center; padding: 3rem 1rem !important; }
+                .empty-content { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; color: #94a3b8; }
+                .empty-content svg { width: 48px; height: 48px; opacity: 0.5; }
                 td { max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
 
                 .pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
