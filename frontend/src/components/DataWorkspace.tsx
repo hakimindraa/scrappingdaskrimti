@@ -670,6 +670,47 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 </button>
             </div>
 
+            {/* Summary Stats Row */}
+            <div className="stats-row">
+                <div className="stat-item primary">
+                    <div className="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                        </svg>
+                    </div>
+                    <div className="stat-content">
+                        <div className="stat-value">{filteredData.length}</div>
+                        <div className="stat-label">Total Data</div>
+                    </div>
+                </div>
+                <div className="stat-item">
+                    <div className="stat-icon blue">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="9" y1="21" x2="9" y2="9" />
+                        </svg>
+                    </div>
+                    <div className="stat-content">
+                        <div className="stat-value">{headers.length}</div>
+                        <div className="stat-label">Kolom</div>
+                    </div>
+                </div>
+                <div className="stat-item">
+                    <div className="stat-icon green">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="9 11 12 14 22 4" />
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                        </svg>
+                    </div>
+                    <div className="stat-content">
+                        <div className="stat-value">{selectedRows.size}</div>
+                        <div className="stat-label">Dipilih</div>
+                    </div>
+                </div>
+            </div>
+
             {/* Filter Panel */}
             {showFilterPanel && (
                 <div className="filter-panel">
@@ -705,29 +746,6 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
             {/* Summary View */}
             {viewMode === 'summary' && (
                 <div className="summary-view">
-                    <div className="summary-grid">
-                        <div className="summary-card main">
-                            <div className="card-icon" style={{ background: `${sourceColor}20`, color: sourceColor }}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
-                            </div>
-                            <div className="card-value">{filteredData.length}</div>
-                            <div className="card-label">Total Data</div>
-                        </div>
-                        <div className="summary-card">
-                            <div className="card-icon" style={{ background: '#dbeafe', color: '#2563eb' }}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg>
-                            </div>
-                            <div className="card-value">{headers.length}</div>
-                            <div className="card-label">Kolom</div>
-                        </div>
-                        <div className="summary-card">
-                            <div className="card-icon" style={{ background: '#dcfce7', color: '#16a34a' }}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-                            </div>
-                            <div className="card-value">{selectedRows.size}</div>
-                            <div className="card-label">Dipilih</div>
-                        </div>
-                    </div>
 
                     {statusSummary && (
                         <div className="status-summary-section">
@@ -876,10 +894,10 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 .filter-toggle[data-active="true"] { background: ${sourceColor}10; border-color: ${sourceColor}; color: ${sourceColor}; }
                 .filter-toggle svg { width: 16px; height: 16px; }
                 
-                .export-row { display: flex; align-items: center; gap: 0.5rem; }
-                .export-label { font-size: 0.85rem; color: #64748b; font-weight: 500; margin-right: 0.25rem; }
-                .export-btn-item { display: flex; align-items: center; gap: 0.375rem; padding: 0.5rem 0.875rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 500; color: white; transition: all 0.2s; }
-                .export-btn-item svg { width: 14px; height: 14px; }
+                .export-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+                .export-label { font-size: 0.875rem; color: #64748b; font-weight: 600; margin-right: 0.5rem; }
+                .export-btn-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.875rem; font-weight: 500; color: white; transition: all 0.2s; }
+                .export-btn-item svg { width: 16px; height: 16px; }
                 .export-btn-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
                 .export-btn-item.excel { background: #16a34a; }
                 .export-btn-item.excel:hover { background: #15803d; }
@@ -889,6 +907,23 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 .export-btn-item.pdf:hover { background: #b91c1c; }
                 .export-btn-item.copy { background: #7c3aed; }
                 .export-btn-item.copy:hover { background: #6d28d9; }
+
+                .stats-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+                .stat-item { display: flex; align-items: flex-start; gap: 0.875rem; background: white; padding: 1.25rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); flex: 1; min-width: 200px; }
+                .stat-item.primary { background: ${sourceColor}; color: white; }
+                .stat-icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 10px; flex-shrink: 0; }
+                .stat-item.primary .stat-icon { background: rgba(255,255,255,0.2); }
+                .stat-item.primary .stat-icon svg { color: white; }
+                .stat-icon.blue { background: #dbeafe; }
+                .stat-icon.blue svg { color: #2563eb; }
+                .stat-icon.green { background: #dcfce7; }
+                .stat-icon.green svg { color: #16a34a; }
+                .stat-icon svg { width: 24px; height: 24px; }
+                .stat-content { display: flex; flex-direction: column; justify-content: center; }
+                .stat-item.primary .stat-value { color: white; }
+                .stat-item.primary .stat-label { color: rgba(255,255,255,0.9); }
+                .stat-value { font-size: 1.75rem; font-weight: 700; color: #1e293b; line-height: 1.2; margin-bottom: 0.125rem; }
+                .stat-label { font-size: 0.8rem; color: #64748b; }
 
                 .filter-panel { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
                 .filter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
@@ -902,14 +937,6 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 .no-filters { color: #94a3b8; font-size: 0.85rem; margin: 0; }
 
                 .summary-view { }
-                .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-                .summary-card { background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-                .summary-card.main { background: ${sourceColor}; color: white; }
-                .summary-card.main .card-icon { background: rgba(255,255,255,0.2) !important; color: white !important; }
-                .card-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem; }
-                .card-icon svg { width: 22px; height: 22px; }
-                .card-value { font-size: 1.75rem; font-weight: 700; }
-                .card-label { font-size: 0.8rem; opacity: 0.8; }
 
                 .status-summary-section { background: white; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
                 .status-summary-section h4 { margin: 0 0 1rem; font-size: 0.95rem; color: #374151; }
