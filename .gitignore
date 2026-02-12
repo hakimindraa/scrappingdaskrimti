@@ -45,3 +45,15 @@ test-results/
 exports/
 *.xlsx
 *.csv
+
+# Database files (SQLite)
+*.db
+*.db-shm
+*.db-wal
+*.json.backup
+
+# Data directories
+sipede-scraper/backend/data/
+spp-scraper/data/
+!spp-scraper/data/.gitkeep
+!sipede-scraper/backend/data/.gitkeep

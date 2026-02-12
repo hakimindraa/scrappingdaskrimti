@@ -35,12 +35,48 @@ export default function SppScraperTab() {
     // Current step
     const [step, setStep] = useState<'initial' | 'browser-open' | 'ready' | 'scraping' | 'done'>('initial');
 
+    // Request notification permission on mount
+    useEffect(() => {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }, []);
+
+    // Show browser notification when scraping completes
+    const showScrapingCompleteNotification = useCallback((dataCount: number, elapsedTime: number) => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const notification = new Notification('✅ Scraping SPDP Selesai!', {
+                body: `${dataCount.toLocaleString()} data berhasil di-scrape${filterYear ? ` (Tahun ${filterYear})` : ''}\nWaktu: ${elapsedTime} detik`,
+                icon: '/favicon.ico',
+                badge: '/favicon.ico',
+                tag: 'spdp-scraping-complete',
+                requireInteraction: false,
+                silent: false
+            });
+
+            // Auto close after 10 seconds
+            setTimeout(() => notification.close(), 10000);
+
+            // Focus window when notification clicked
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+        }
+    }, [filterYear]);
+
     // Polling for status
     const pollStatus = useCallback(async () => {
         try {
             const result = await api.getStatus();
             if (result.success) {
+                const prevStatus = status;
                 setStatus(result.data);
+
+                // Detect scraping completion and show notification
+                if (prevStatus?.isRunning && !result.data.isRunning && result.data.dataCount > 0) {
+                    showScrapingCompleteNotification(result.data.dataCount, result.data.elapsedTime || 0);
+                }
 
                 if (!result.data.browserOpen) {
                     setStep('initial');
@@ -57,7 +93,7 @@ export default function SppScraperTab() {
         } catch (err) {
             console.error('Status poll error:', err);
         }
-    }, [tableInfo]);
+    }, [tableInfo, status, showScrapingCompleteNotification]);
 
     useEffect(() => {
         pollStatus();

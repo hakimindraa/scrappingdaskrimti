@@ -7,7 +7,8 @@
         "postinstall": "npx playwright install chromium --with-deps",
         "start": "node src/server.js",
         "dev": "nodemon src/server.js",
-        "test:scraper": "node src/test/testScraper.js"
+        "test:scraper": "node src/test/testScraper.js",
+        "migrate": "node src/migrate-to-sqlite.js"
     },
     "keywords": [
         "sipede",
@@ -24,6 +25,7 @@
         "helmet": "^7.1.0",
         "morgan": "^1.10.0",
         "playwright": "^1.40.1",
+        "sql.js": "^1.13.0",
         "xlsx": "^0.18.5"
     },
     "devDependencies": {

@@ -91,15 +91,42 @@ if (!(Test-Path $frontendModules)) {
 }
 Write-Color "  OK Frontend dependencies" "Green"
 
-# SIPEDE Backend dependencies
+# SIPEDE Backend dependencies + SQLite check
 $sipedeModules = Join-Path $scriptDir "sipede-scraper\backend\node_modules"
+$sipedeSqlite = Join-Path $scriptDir "sipede-scraper\backend\node_modules\sql.js"
+$sipedeBackendDir = Join-Path $scriptDir "sipede-scraper\backend"
+
 if (!(Test-Path $sipedeModules)) {
-    Write-Color "  Installing SIPEDE backend dependencies..." "Gray"
-    Set-Location (Join-Path $scriptDir "sipede-scraper\backend")
+    Write-Color "  Installing SIPEDE backend dependencies (including SQLite)..." "Gray"
+    Set-Location $sipedeBackendDir
     npm install
     Set-Location $scriptDir
+    Write-Color "  OK SIPEDE Backend dependencies installed" "Green"
+} elseif (!(Test-Path $sipedeSqlite)) {
+    Write-Color "  SQLite not found, installing sql.js..." "Yellow"
+    Set-Location $sipedeBackendDir
+    npm install sql.js --save
+    Set-Location $scriptDir
+    Write-Color "  OK SQLite installed" "Green"
+} else {
+    Write-Color "  OK SIPEDE Backend dependencies (SQLite ready)" "Green"
 }
-Write-Color "  OK SIPEDE Backend dependencies" "Green"
+
+# Check if migration needed (JSON files exist but no SQLite DB)
+$sipedeDataDir = Join-Path $scriptDir "sipede-scraper\backend\data"
+$sipedeDb = Join-Path $sipedeDataDir "sipede_data.db"
+$activityJson = Join-Path $sipedeDataDir "activity_logs.json"
+$scrapedJson = Join-Path $sipedeDataDir "scraped_data.json"
+
+if ((Test-Path $activityJson) -or (Test-Path $scrapedJson)) {
+    if (!(Test-Path $sipedeDb)) {
+        Write-Color "  Detected old JSON data, running migration to SQLite..." "Yellow"
+        Set-Location $sipedeBackendDir
+        npm run migrate
+        Set-Location $scriptDir
+        Write-Color "  OK Data migrated to SQLite" "Green"
+    }
+}
 
 # SPP Backend dependencies (Python venv)
 $sppVenv = Join-Path $scriptDir "spp-scraper\venv"

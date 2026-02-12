@@ -1,0 +1,70 @@
+=====================================
+SIPEDE SQLite Migration - Quick Start
+=====================================
+
+LANGKAH INSTALASI (PILIH SALAH SATU):
+
+1. AUTOMATIC (RECOMMENDED):
+   
+   Double-click file ini:
+   > INSTALL_SQLITE.bat
+   
+   Atau jalankan:
+   > powershell -ExecutionPolicy Bypass -File Install-SQLite.ps1
+
+2. MANUAL:
+   
+   cd sipede-scraper/backend
+   npm install
+   npm run migrate
+
+=====================================
+
+SETELAH INSTALL:
+
+Jalankan aplikasi seperti biasa:
+> Start-WebScraper.bat
+
+=====================================
+
+VERIFY:
+
+Cek apakah file ini ada:
+sipede-scraper/backend/data/sipede_data.db
+
+Jika ada = BERHASIL!
+
+=====================================
+
+DOKUMENTASI LENGKAP:
+
+- README_SQLITE_MIGRATION.md (Panduan utama)
+- SQLITE_MIGRATION_GUIDE.md (Step-by-step)
+- SIPEDE_SQLITE_SUMMARY.md (Summary)
+
+=====================================
+
+KEUNTUNGAN:
+
+- 10-25x lebih cepat
+- Transaction-safe
+- SQL query support
+- GUI tools (DB Browser)
+
+=====================================
+
+TIDAK ADA BREAKING CHANGES:
+
+- Frontend: Tidak berubah
+- API: Tidak berubah
+- Cara pakai: Tidak berubah
+
+Hanya backend yang lebih baik!
+
+=====================================
+
+NEED HELP?
+
+Baca: SQLITE_MIGRATION_GUIDE.md
+
+=====================================

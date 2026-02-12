@@ -136,8 +136,21 @@ export default function DashboardTab() {
         return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
     };
 
-    const formatTimeAgo = (date: Date): string => {
+    const formatTimeAgo = (dateString: string): string => {
+        // Parse the date string - handle both ISO format and SQLite format
+        let date: Date;
+        
+        // If the date string doesn't have timezone info, assume it's UTC
+        if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+            // SQLite CURRENT_TIMESTAMP format: "YYYY-MM-DD HH:MM:SS"
+            // Add 'Z' to indicate UTC
+            date = new Date(dateString + 'Z');
+        } else {
+            date = new Date(dateString);
+        }
+        
         const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+        
         if (seconds < 60) return 'Baru saja';
         if (seconds < 3600) return `${Math.floor(seconds / 60)} menit lalu`;
         if (seconds < 86400) return `${Math.floor(seconds / 3600)} jam lalu`;
@@ -514,7 +527,7 @@ export default function DashboardTab() {
                                         <div className="history-message">{log.message}</div>
                                         <div className="history-meta">
                                             <span className="history-source">{log.source}</span>
-                                            <span className="history-time">{formatTimeAgo(new Date(log.createdAt))}</span>
+                                            <span className="history-time">{formatTimeAgo(log.createdAt)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -584,7 +597,7 @@ export default function DashboardTab() {
                                         <span className="activity-icon">{getLogIcon(log.type)}</span>
                                         <div className="activity-content">
                                             <span className="activity-msg">{log.message}</span>
-                                            <span className="activity-meta">{log.source} • {formatTimeAgo(new Date(log.createdAt))}</span>
+                                            <span className="activity-meta">{log.source} • {formatTimeAgo(log.createdAt)}</span>
                                         </div>
                                     </div>
                                 ))

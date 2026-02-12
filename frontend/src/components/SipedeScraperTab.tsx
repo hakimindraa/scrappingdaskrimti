@@ -42,12 +42,46 @@ export default function SipedeScraperTab() {
 
     // Current step: initial -> waiting-login -> ready -> scraping -> done
     const [step, setStep] = useState<'initial' | 'waiting-login' | 'ready' | 'scraping' | 'done'>('initial');
+    
+    // Track previous scraping state for notification
+    const [wasScraping, setWasScraping] = useState(false);
+
+    // Request notification permission on mount
+    useEffect(() => {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }, []);
+
+    // Show browser notification when scraping completes
+    const showScrapingCompleteNotification = useCallback((dataCount: number, elapsedTime: number) => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const notification = new Notification('✅ Scraping SIPEDE Selesai!', {
+                body: `${dataCount.toLocaleString()} data berhasil di-scrape${selectedYear ? ` (Tahun ${selectedYear})` : ''}\nWaktu: ${elapsedTime} detik`,
+                icon: '/favicon.ico',
+                badge: '/favicon.ico',
+                tag: 'sipede-scraping-complete',
+                requireInteraction: false,
+                silent: false
+            });
+
+            // Auto close after 10 seconds
+            setTimeout(() => notification.close(), 10000);
+
+            // Focus window when notification clicked
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+        }
+    }, [selectedYear]);
 
     // Polling for status
     const pollStatus = useCallback(async () => {
         try {
             const result = await api.getStatus();
             if (result.success) {
+                const prevStatus = status;
                 setStatus(result.data);
 
                 // Update years from status if available, otherwise keep defaults
@@ -57,6 +91,14 @@ export default function SipedeScraperTab() {
                 if (result.data.selectedYear && !selectedYear) {
                     setSelectedYear(result.data.selectedYear);
                 }
+
+                // Detect scraping completion and show notification
+                if (prevStatus?.isRunning && !result.data.isRunning && result.data.dataCount > 0) {
+                    showScrapingCompleteNotification(result.data.dataCount, result.data.elapsedTime || 0);
+                }
+
+                // Track scraping state
+                setWasScraping(result.data.isRunning);
 
                 if (!result.data.browserOpen) {
                     setStep('initial');
@@ -76,7 +118,7 @@ export default function SipedeScraperTab() {
         } catch (err) {
             console.error('Status poll error:', err);
         }
-    }, [tableInfo, selectedYear]);
+    }, [tableInfo, selectedYear, status, showScrapingCompleteNotification]);
 
     useEffect(() => {
         pollStatus();
