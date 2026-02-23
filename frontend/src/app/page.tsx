@@ -7,15 +7,13 @@ import SppScraperTab from '@/components/SppScraperTab';
 import InsightTab from '@/components/InsightTab';
 import DataWorkspace from '@/components/DataWorkspace';
 
-type TabType = 'dashboard' | 'sipede' | 'spp' | 'insight-sipede' | 'insight-spdp' | 'workspace-sipede' | 'workspace-spdp';
+type TabType = 'dashboard' | 'sipede' | 'spp' | 'insight' | 'workspace-sipede' | 'workspace-spdp';
 
 export default function HomePage() {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [scrappingMenuOpen, setScrappingMenuOpen] = useState(false);
-    const [insightMenuOpen, setInsightMenuOpen] = useState(false);
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
     const scrappingDropdownRef = useRef<HTMLDivElement>(null);
-    const insightDropdownRef = useRef<HTMLDivElement>(null);
     const workspaceDropdownRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown when clicking outside
@@ -24,9 +22,7 @@ export default function HomePage() {
             if (scrappingDropdownRef.current && !scrappingDropdownRef.current.contains(event.target as Node)) {
                 setScrappingMenuOpen(false);
             }
-            if (insightDropdownRef.current && !insightDropdownRef.current.contains(event.target as Node)) {
-                setInsightMenuOpen(false);
-            }
+
             if (workspaceDropdownRef.current && !workspaceDropdownRef.current.contains(event.target as Node)) {
                 setWorkspaceMenuOpen(false);
             }
@@ -40,10 +36,7 @@ export default function HomePage() {
         setScrappingMenuOpen(false);
     };
 
-    const handleInsightSelect = (tab: 'insight-sipede' | 'insight-spdp') => {
-        setActiveTab(tab);
-        setInsightMenuOpen(false);
-    };
+
 
     const handleWorkspaceSelect = (tab: 'workspace-sipede' | 'workspace-spdp') => {
         setActiveTab(tab);
@@ -80,7 +73,7 @@ export default function HomePage() {
                             </svg>
                             Dashboard
                         </button>
-                        
+
                         {/* Scrapping Dropdown Menu */}
                         <div className="dropdown-container" ref={scrappingDropdownRef}>
                             <button
@@ -98,7 +91,7 @@ export default function HomePage() {
                                     <polyline points="6 9 12 15 18 9" />
                                 </svg>
                             </button>
-                            
+
                             {scrappingMenuOpen && (
                                 <div className="dropdown-menu">
                                     <button
@@ -142,7 +135,7 @@ export default function HomePage() {
                                     <polyline points="6 9 12 15 18 9" />
                                 </svg>
                             </button>
-                            
+
                             {workspaceMenuOpen && (
                                 <div className="dropdown-menu">
                                     <button
@@ -170,52 +163,21 @@ export default function HomePage() {
                             )}
                         </div>
 
-                        {/* Insight Dropdown Menu */}
-                        <div className="dropdown-container" ref={insightDropdownRef}>
-                            <button
-                                className={`tab-btn ${(activeTab === 'insight-sipede' || activeTab === 'insight-spdp') ? 'active' : ''}`}
-                                onClick={() => setInsightMenuOpen(!insightMenuOpen)}
-                            >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                    <polyline points="7.5 4.21 12 6.81 16.5 4.21" />
-                                    <polyline points="7.5 19.79 7.5 14.6 3 12" />
-                                    <polyline points="21 12 16.5 14.6 16.5 19.79" />
-                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                                </svg>
-                                Insight
-                                <svg className={`dropdown-arrow ${insightMenuOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polyline points="6 9 12 15 18 9" />
-                                </svg>
-                            </button>
-                            
-                            {insightMenuOpen && (
-                                <div className="dropdown-menu">
-                                    <button
-                                        className={`dropdown-item ${activeTab === 'insight-sipede' ? 'active' : ''}`}
-                                        onClick={() => handleInsightSelect('insight-sipede')}
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <path d="M12 16v-4M12 8h.01" />
-                                        </svg>
-                                        SIPEDE
-                                    </button>
-                                    <button
-                                        className={`dropdown-item ${activeTab === 'insight-spdp' ? 'active' : ''}`}
-                                        onClick={() => handleInsightSelect('insight-spdp')}
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                            <line x1="3" y1="9" x2="21" y2="9" />
-                                            <line x1="9" y1="21" x2="9" y2="9" />
-                                        </svg>
-                                        SPDP
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                        {/* Insight Tab */}
+                        <button
+                            className={`tab-btn ${activeTab === 'insight' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('insight')}
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                <polyline points="7.5 4.21 12 6.81 16.5 4.21" />
+                                <polyline points="7.5 19.79 7.5 14.6 3 12" />
+                                <polyline points="21 12 16.5 14.6 16.5 19.79" />
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                                <line x1="12" y1="22.08" x2="12" y2="12" />
+                            </svg>
+                            Insight
+                        </button>
                     </div>
                 </div>
             </header>
@@ -225,8 +187,7 @@ export default function HomePage() {
                 {activeTab === 'dashboard' && <DashboardTab />}
                 {activeTab === 'sipede' && <SipedeScraperTab />}
                 {activeTab === 'spp' && <SppScraperTab />}
-                {activeTab === 'insight-sipede' && <InsightTab source="sipede" />}
-                {activeTab === 'insight-spdp' && <InsightTab source="spdp" />}
+                {activeTab === 'insight' && <InsightTab />}
                 {activeTab === 'workspace-sipede' && <DataWorkspace source="sipede" />}
                 {activeTab === 'workspace-spdp' && <DataWorkspace source="spdp" />}
             </main>
