@@ -5,6 +5,7 @@ import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { KELOMPOK_LIST, AsalEntry } from '../data/masterAsal';
 import { ASAL_KELOMPOK_MAP } from '../data/asalMapping';
+import { JENIS_KATEGORI_LIST, JENIS_KATEGORI_MAP, JenisEntry } from '../data/jenisMapping';
 import {
     CheckCircleIcon,
     XCircleIcon,
@@ -18,14 +19,42 @@ import {
     ArrowDownIcon,
 } from '@heroicons/react/24/outline';
 
+interface RawRow {
+    jenis: string;
+    asal: string;
+    month: number;
+    year: number;
+}
+
+interface RawRowKeluar {
+    jenis: string;
+    month: number;
+    year: number;
+}
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_LABELS_FULL = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
 export default function InsightTab() {
     const dashboardRef = useRef<HTMLDivElement>(null);
     const [isDownloading, setIsDownloading] = useState(false);
 
+    // --- Raw Data & Filter State ---
+    const [rawRows, setRawRows] = useState<RawRow[]>([]);
+    const [availableRange, setAvailableRange] = useState<{ min: number; max: number } | null>(null);
+    const [bulanDari, setBulanDari] = useState<number>(1);
+    const [bulanSampai, setBulanSampai] = useState<number>(12);
+    const [dataYear, setDataYear] = useState<{ min: number; max: number } | null>(null);
+    const [jenisKategoriOverrides, setJenisKategoriOverrides] = useState<Record<string, string>>({});
+    const [asalKelompokOverrides, setAsalKelompokOverrides] = useState<Record<string, string>>({});
+    const [hasUploadedJenis, setHasUploadedJenis] = useState(false);
+    const [hasUploadedAsal, setHasUploadedAsal] = useState(false);
+    const [rawRowsKeluar, setRawRowsKeluar] = useState<RawRowKeluar[]>([]);
+    const [hasUploadedKeluar, setHasUploadedKeluar] = useState(false);
+
     // --- Pengelompokan State ---
     const [checkedGroups, setCheckedGroups] = useState<Set<string>>(new Set(KELOMPOK_LIST));
     const [customGroups, setCustomGroups] = useState<{ name: string; asalList: string[] }[]>([]);
-    const [asalData, setAsalData] = useState<AsalEntry[]>([]);
     const [showUnmappedOnly, setShowUnmappedOnly] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [assignAsal, setAssignAsal] = useState<AsalEntry | null>(null);
@@ -33,18 +62,96 @@ export default function InsightTab() {
     const [newGroupSelected, setNewGroupSelected] = useState<Set<string>>(new Set());
     const [searchAsal, setSearchAsal] = useState('');
 
-    // --- Upload Excel Jenis Surat State ---
-    const [uploadedJenis, setUploadedJenis] = useState<{label:string, masuk:number}[] | null>(null);
-    const [uploadInfo, setUploadInfo] = useState<{totalRows:number, categories:number} | null>(null);
+    // --- Tab & Filter Toggle State ---
+    const [activeTab, setActiveTab] = useState<'jenis' | 'asal'>('jenis');
+    const [showJenisFilter, setShowJenisFilter] = useState(false);
+    const [showAsalFilter, setShowAsalFilter] = useState(false);
+
+    // --- Jenis Surat Pengelompokan State ---
+    const [checkedJenisGroups, setCheckedJenisGroups] = useState<Set<string>>(new Set(JENIS_KATEGORI_LIST));
+    const [showJenisUnmappedOnly, setShowJenisUnmappedOnly] = useState(false);
+    const [assignJenis, setAssignJenis] = useState<JenisEntry | null>(null);
+    const [uploadInfo, setUploadInfo] = useState<{totalRowsMasuk?:number, jenisCount?:number, jenisMatched?:number, jenisUnmatched?:number, asalCount?:number, asalMatched?:number, asalUnmatched?:number, totalRowsKeluar?:number, keluarJenisCount?:number, keluarJenisMatched?:number, keluarJenisUnmatched?:number} | null>(null);
     const jenisChartRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    // --- Upload Excel Asal Surat State ---
-    const [hasUploadedAsal, setHasUploadedAsal] = useState(false);
-    const [uploadAsalInfo, setUploadAsalInfo] = useState<{totalRows:number, categories:number, matched:number, unmatched:number} | null>(null);
+    const fileInputRef2 = useRef<HTMLInputElement>(null);
+    const fileInputRefKeluar = useRef<HTMLInputElement>(null);
     const asalChartRef = useRef<HTMLDivElement>(null);
 
-    // --- Pengelompokan Computed ---
+    // --- Filtered Rows (reactive to month filter) ---
+    const filteredRows = useMemo(() => {
+        return rawRows.filter(r => r.month >= bulanDari && r.month <= bulanSampai);
+    }, [rawRows, bulanDari, bulanSampai]);
+
+    const filteredRowsKeluar = useMemo(() => {
+        return rawRowsKeluar.filter(r => r.month >= bulanDari && r.month <= bulanSampai);
+    }, [rawRowsKeluar, bulanDari, bulanSampai]);
+
+    // --- Jenis Data (computed from filteredRows + filteredRowsKeluar) ---
+    const jenisData = useMemo((): JenisEntry[] => {
+        if (filteredRows.length === 0 && filteredRowsKeluar.length === 0 && !hasUploadedJenis && !hasUploadedKeluar) return [];
+        const masukCounts: Record<string, number> = {};
+        filteredRows.forEach(r => {
+            if (!r.jenis) return;
+            masukCounts[r.jenis] = (masukCounts[r.jenis] || 0) + 1;
+        });
+        const keluarCounts: Record<string, number> = {};
+        filteredRowsKeluar.forEach(r => {
+            if (!r.jenis) return;
+            keluarCounts[r.jenis] = (keluarCounts[r.jenis] || 0) + 1;
+        });
+        const allJenis = new Set([...Object.keys(masukCounts), ...Object.keys(keluarCounts)]);
+        return Array.from(allJenis).map(jenis => ({
+            jenis,
+            countMasuk: masukCounts[jenis] || 0,
+            countKeluar: keluarCounts[jenis] || 0,
+            kategori: jenisKategoriOverrides[jenis] || JENIS_KATEGORI_MAP[jenis] || '',
+        }));
+    }, [filteredRows, filteredRowsKeluar, hasUploadedJenis, hasUploadedKeluar, jenisKategoriOverrides]);
+
+    // --- Asal Data (computed from filteredRows) ---
+    const asalData = useMemo((): AsalEntry[] => {
+        if (filteredRows.length === 0 && !hasUploadedAsal) return [];
+        const counts: Record<string, number> = {};
+        filteredRows.forEach(r => {
+            if (!r.asal) return;
+            counts[r.asal] = (counts[r.asal] || 0) + 1;
+        });
+        return Object.entries(counts).map(([asal, count]) => ({
+            asal,
+            count,
+            kelompok: asalKelompokOverrides[asal] || ASAL_KELOMPOK_MAP[asal] || '',
+        }));
+    }, [filteredRows, hasUploadedAsal, asalKelompokOverrides]);
+
+    // --- Jenis Surat Computed ---
+    const allJenisKategori = useMemo(() => [...JENIS_KATEGORI_LIST], []);
+    const jenisSudahCount = useMemo(() => jenisData.filter(d => d.kategori !== '').length, [jenisData]);
+    const jenisBelumCount = useMemo(() => jenisData.filter(d => d.kategori === '').length, [jenisData]);
+    const filteredJenis = useMemo(() => {
+        let data = jenisData;
+        if (showJenisUnmappedOnly) data = data.filter(d => d.kategori === '');
+        else data = data.filter(d => d.kategori === '' || checkedJenisGroups.has(d.kategori));
+        return data;
+    }, [jenisData, checkedJenisGroups, showJenisUnmappedOnly]);
+
+    const toggleJenisGroup = (g: string) => {
+        setCheckedJenisGroups(prev => {
+            const next = new Set(prev);
+            next.has(g) ? next.delete(g) : next.add(g);
+            return next;
+        });
+    };
+
+    const jenisGroupCount = (g: string) => jenisData.filter(d => d.kategori === g).length;
+
+    const handleAssignJenis = (kategori: string) => {
+        if (!assignJenis) return;
+        setJenisKategoriOverrides(prev => ({ ...prev, [assignJenis.jenis]: kategori }));
+        setAssignJenis(null);
+    };
+
+    // --- Pengelompokan Asal Computed ---
     const allKelompok = useMemo(() => [...KELOMPOK_LIST, ...customGroups.map(g => g.name)], [customGroups]);
     const sudahCount = useMemo(() => asalData.filter(d => d.kelompok !== '').length, [asalData]);
     const belumCount = useMemo(() => asalData.filter(d => d.kelompok === '').length, [asalData]);
@@ -67,7 +174,7 @@ export default function InsightTab() {
 
     const handleAssign = (kelompok: string) => {
         if (!assignAsal) return;
-        setAsalData(prev => prev.map(d => d.asal === assignAsal.asal ? { ...d, kelompok } : d));
+        setAsalKelompokOverrides(prev => ({ ...prev, [assignAsal.asal]: kelompok }));
         if (!checkedGroups.has(kelompok)) toggleGroup(kelompok);
         setAssignAsal(null);
     };
@@ -76,7 +183,11 @@ export default function InsightTab() {
         if (!newGroupName.trim() || newGroupSelected.size === 0) return;
         const name = newGroupName.trim();
         setCustomGroups(prev => [...prev, { name, asalList: Array.from(newGroupSelected) }]);
-        setAsalData(prev => prev.map(d => newGroupSelected.has(d.asal) ? { ...d, kelompok: name } : d));
+        setAsalKelompokOverrides(prev => {
+            const next = { ...prev };
+            newGroupSelected.forEach(asal => { next[asal] = name; });
+            return next;
+        });
         setCheckedGroups(prev => new Set([...prev, name]));
         setNewGroupName('');
         setNewGroupSelected(new Set());
@@ -88,6 +199,26 @@ export default function InsightTab() {
         if (!searchAsal) return list;
         return list.filter(d => d.asal.toLowerCase().includes(searchAsal.toLowerCase()));
     }, [asalData, searchAsal]);
+    // --- Parse Date Helper ---
+    const parseDate = (raw: unknown): { month: number; year: number } | null => {
+        if (!raw) return null;
+        if (raw instanceof Date) return { month: raw.getMonth() + 1, year: raw.getFullYear() };
+        const str = String(raw).trim();
+        if (/^\d{5}$/.test(str)) {
+            const date = new Date((Number(str) - 25569) * 86400000);
+            return { month: date.getMonth() + 1, year: date.getFullYear() };
+        }
+        const ddmm = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+        if (ddmm) {
+            let y = parseInt(ddmm[3], 10);
+            if (y < 100) y += 2000;
+            return { month: parseInt(ddmm[2], 10), year: y };
+        }
+        const iso = str.match(/^(\d{4})[-\/](\d{1,2})[-\/]\d{1,2}$/);
+        if (iso) return { month: parseInt(iso[2], 10), year: parseInt(iso[1], 10) };
+        return null;
+    };
+
     // --- Excel Upload Handler ---
     const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -99,100 +230,204 @@ export default function InsightTab() {
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
 
-            // Cari kolom "Jenis Surat"
-            const counts: Record<string, number> = {};
+            // Parse all rows into rawRows
+            const parsed: RawRow[] = [];
+            let minMonth = 13, maxMonth = 0;
+            const yearsFound = new Set<number>();
+
             rows.forEach(row => {
                 const jenis = (row['Jenis Surat'] || '').toString().trim().toUpperCase();
-                if (jenis) counts[jenis] = (counts[jenis] || 0) + 1;
-            });
-
-            const result = Object.entries(counts).map(([label, masuk]) => ({ label, masuk }));
-            setUploadedJenis(result);
-            setUploadInfo({ totalRows: rows.length, categories: result.length });
-
-            // --- Asal Surat: mapping ke kelompok ---
-            const kelompokCounts: Record<string, number> = {};
-            const asalCounts: Record<string, number> = {};
-            let matched = 0, unmatched = 0;
-
-            rows.forEach(row => {
                 const asal = (row['Asal'] || '').toString().trim().toUpperCase();
-                if (!asal) return;
-
-                // Count per individual asal (for pengelompokan table)
-                asalCounts[asal] = (asalCounts[asal] || 0) + 1;
-
-                const kelompok = ASAL_KELOMPOK_MAP[asal];
-                if (kelompok) {
-                    kelompokCounts[kelompok] = (kelompokCounts[kelompok] || 0) + 1;
-                    matched++;
-                } else {
-                    kelompokCounts['Lainnya'] = (kelompokCounts['Lainnya'] || 0) + 1;
-                    unmatched++;
-                }
+                const d = parseDate(row['Tanggal']);
+                if (!d || d.month < 1 || d.month > 12) return;
+                parsed.push({ jenis, asal, month: d.month, year: d.year });
+                if (d.month < minMonth) minMonth = d.month;
+                if (d.month > maxMonth) maxMonth = d.month;
+                yearsFound.add(d.year);
             });
 
-            // Update pengelompokan table with individual asal entries
-            if (Object.keys(asalCounts).length > 0) {
-                const newAsalData: AsalEntry[] = Object.entries(asalCounts).map(([asal, count]) => ({
-                    asal,
-                    count,
-                    kelompok: ASAL_KELOMPOK_MAP[asal] || '',
-                }));
-                setAsalData(newAsalData);
-            }
+            // Compute upload info from parsed rows
+            const jenisCounts: Record<string, number> = {};
+            const asalCounts: Record<string, number> = {};
+            parsed.forEach(r => {
+                if (r.jenis) jenisCounts[r.jenis] = (jenisCounts[r.jenis] || 0) + 1;
+                if (r.asal) asalCounts[r.asal] = (asalCounts[r.asal] || 0) + 1;
+            });
 
-            const asalResult = Object.entries(kelompokCounts)
-                .map(([label, value]) => ({ label, value }))
-                .sort((a, b) => b.value - a.value);
+            let jenisMatched = 0, jenisUnmatched = 0;
+            Object.entries(jenisCounts).forEach(([jenis, count]) => {
+                if (JENIS_KATEGORI_MAP[jenis]) jenisMatched += count; else jenisUnmatched += count;
+            });
+            let asalMatched = 0, asalUnmatched = 0;
+            Object.entries(asalCounts).forEach(([asal, count]) => {
+                if (ASAL_KELOMPOK_MAP[asal]) asalMatched += count; else asalUnmatched += count;
+            });
 
-            if (asalResult.length > 0) {
-                setHasUploadedAsal(true);
-                setUploadAsalInfo({ totalRows: rows.length, categories: asalResult.length, matched, unmatched });
+            // Store raw rows & set filter range
+            setRawRows(parsed);
+            if (minMonth <= maxMonth) {
+                setAvailableRange(prev => prev
+                    ? { min: Math.min(prev.min, minMonth), max: Math.max(prev.max, maxMonth) }
+                    : { min: minMonth, max: maxMonth });
+                setBulanDari(prev => rawRowsKeluar.length > 0 ? Math.min(prev, minMonth) : minMonth);
+                setBulanSampai(prev => rawRowsKeluar.length > 0 ? Math.max(prev, maxMonth) : maxMonth);
             }
+            if (yearsFound.size > 0) {
+                const sorted = Array.from(yearsFound).sort();
+                setDataYear({ min: sorted[0], max: sorted[sorted.length - 1] });
+            }
+            if (Object.keys(jenisCounts).length > 0) setHasUploadedJenis(true);
+            if (Object.keys(asalCounts).length > 0) setHasUploadedAsal(true);
+
+            // Reset overrides on new upload
+            setJenisKategoriOverrides({});
+            setAsalKelompokOverrides({});
+
+            setUploadInfo(prev => ({
+                ...prev,
+                totalRowsMasuk: rows.length,
+                jenisCount: Object.keys(jenisCounts).length,
+                jenisMatched,
+                jenisUnmatched,
+                asalCount: Object.keys(asalCounts).length,
+                asalMatched,
+                asalUnmatched,
+            }));
         };
         reader.readAsBinaryString(file);
-        // Reset input so same file can be re-uploaded
         if (fileInputRef.current) fileInputRef.current.value = '';
+        if (fileInputRef2.current) fileInputRef2.current.value = '';
     };
 
-    // --- Hardcoded Data ---
-    const suratMasuk = 5597;
-    const suratKeluar = 8716;
+    // --- Excel Upload Handler (Surat Keluar) ---
+    const handleExcelUploadKeluar = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-    const trendMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
-    const trendMasuk = [607, 807, 665, 608, 675, 458, 878, 701, 621];
-    const trendKeluar = [1104, 956, 1071, 1067, 1199, 955, 882, 691, 807];
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const workbook = XLSX.read(evt.target?.result, { type: 'binary' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
 
-    const jenisKategoriDefault = [
-        { label: 'BIASA INTERNAL / EKSTERNAL', keluar: 4540, masuk: 4810 },
-        { label: 'KEPUTUSAN / SURAT PERINTAH / SURAT TUGAS', keluar: 50, masuk: 1883 },
-        { label: 'LAPORAN', keluar: 669, masuk: 11 },
-        { label: 'NOTA DINAS', keluar: 103, masuk: 1015 },
-        { label: 'SURAT EDARAN', keluar: 0, masuk: 19 },
-        { label: 'SURAT PENGANTAR / LAMPIRAN', keluar: 552, masuk: 498 },
-        { label: 'UNDANGAN INTERNAL / EKSTERNAL', keluar: 57, masuk: 106 },
-    ];
+            const parsed: RawRowKeluar[] = [];
+            let minM = 13, maxM = 0;
+            const yearsFound = new Set<number>();
 
-    // Jenis Kategori: dynamic from upload or hardcoded default
-    const jenisKategori = uploadedJenis
-        ? uploadedJenis.map(d => ({ label: d.label, masuk: d.masuk, keluar: 0 }))
-        : jenisKategoriDefault;
+            rows.forEach(row => {
+                const jenis = (row['Jenis Surat'] || '').toString().trim().toUpperCase();
+                const d = parseDate(row['Tanggal']);
+                if (!d || d.month < 1 || d.month > 12) return;
+                parsed.push({ jenis, month: d.month, year: d.year });
+                if (d.month < minM) minM = d.month;
+                if (d.month > maxM) maxM = d.month;
+                yearsFound.add(d.year);
+            });
 
-    const asalSuratDefault = [
-        { label: 'Aliansi Kemasyarakatan / Pribadi / LSM', value: 146 },
-        { label: 'Gubernur / Pemda', value: 150 },
-        { label: 'Instansi Lainnya / BUMN', value: 179 },
-        { label: 'Kejaksaan', value: 3257 },
-        { label: 'Kemenkeu', value: 69 },
-        { label: 'Kepolisian dan BNN', value: 1782 },
-        { label: 'Pengadilan', value: 8 },
-        { label: 'Perbankan', value: 6 },
-    ];
+            setRawRowsKeluar(parsed);
+            setHasUploadedKeluar(true);
 
-    // Asal Surat: computed from asalData (reactive to assign kelompok) or hardcoded default
+            // Merge filter range
+            if (minM <= maxM) {
+                setBulanDari(prev => Math.min(prev, minM));
+                setBulanSampai(prev => Math.max(prev, maxM));
+                setAvailableRange(prev => prev
+                    ? { min: Math.min(prev.min, minM), max: Math.max(prev.max, maxM) }
+                    : { min: minM, max: maxM });
+            }
+            if (yearsFound.size > 0) {
+                const sorted = Array.from(yearsFound).sort();
+                setDataYear(prev => prev
+                    ? { min: Math.min(prev.min, sorted[0]), max: Math.max(prev.max, sorted[sorted.length - 1]) }
+                    : { min: sorted[0], max: sorted[sorted.length - 1] });
+            }
+
+            // Compute keluar jenis stats
+            const keluarJenisCounts: Record<string, number> = {};
+            parsed.forEach(r => {
+                if (r.jenis) keluarJenisCounts[r.jenis] = (keluarJenisCounts[r.jenis] || 0) + 1;
+            });
+            let keluarJenisMatched = 0, keluarJenisUnmatched = 0;
+            Object.entries(keluarJenisCounts).forEach(([jenis]) => {
+                if (JENIS_KATEGORI_MAP[jenis] || jenisKategoriOverrides[jenis]) keluarJenisMatched++; else keluarJenisUnmatched++;
+            });
+
+            setUploadInfo(prev => ({
+                ...prev,
+                totalRowsKeluar: rows.length,
+                keluarJenisCount: Object.keys(keluarJenisCounts).length,
+                keluarJenisMatched,
+                keluarJenisUnmatched,
+            }));
+        };
+        reader.readAsBinaryString(file);
+        if (fileInputRefKeluar.current) fileInputRefKeluar.current.value = '';
+    };
+
+    // --- Total Surat (reactive from filtered rows) ---
+    const suratMasuk = useMemo(() => {
+        return filteredRows.length;
+    }, [filteredRows]);
+
+    // --- Tren Surat Masuk (computed from filteredRows) ---
+    const trendMasukData = useMemo(() => {
+        if (rawRows.length === 0) return null;
+        const months: string[] = [];
+        const masuk: number[] = [];
+        for (let m = bulanDari; m <= bulanSampai; m++) {
+            months.push(MONTH_LABELS[m - 1]);
+            masuk.push(filteredRows.filter(r => r.month === m).length);
+        }
+        return { months, masuk };
+    }, [rawRows, filteredRows, bulanDari, bulanSampai]);
+
+    const trendKeluar = useMemo(() => {
+        if (rawRowsKeluar.length === 0) return [] as number[];
+        const result: number[] = [];
+        for (let m = bulanDari; m <= bulanSampai; m++) {
+            result.push(filteredRowsKeluar.filter(r => r.month === m).length);
+        }
+        return result;
+    }, [rawRowsKeluar, filteredRowsKeluar, bulanDari, bulanSampai]);
+
+    const trendMonths = useMemo(() => {
+        if (rawRows.length === 0 && rawRowsKeluar.length === 0) return [] as string[];
+        const months: string[] = [];
+        for (let m = bulanDari; m <= bulanSampai; m++) {
+            months.push(MONTH_LABELS[m - 1]);
+        }
+        return months;
+    }, [rawRows, rawRowsKeluar, bulanDari, bulanSampai]);
+
+    const trendMasuk = useMemo(() => {
+        return trendMasukData ? trendMasukData.masuk : [];
+    }, [trendMasukData]);
+
+    // Jenis Kategori: reactive from jenisData (masuk + keluar)
+    const jenisKategori = useMemo(() => {
+        if (!hasUploadedJenis && !hasUploadedKeluar) return [] as { label: string; masuk: number; keluar: number }[];
+        const masukCounts: Record<string, number> = {};
+        const keluarCounts: Record<string, number> = {};
+        jenisData.forEach(d => {
+            const key = d.kategori || 'Lainnya';
+            masukCounts[key] = (masukCounts[key] || 0) + d.countMasuk;
+            keluarCounts[key] = (keluarCounts[key] || 0) + d.countKeluar;
+        });
+        const allKat = new Set([...Object.keys(masukCounts), ...Object.keys(keluarCounts)]);
+        return Array.from(allKat).map(label => ({
+            label,
+            masuk: masukCounts[label] || 0,
+            keluar: keluarCounts[label] || 0,
+        })).sort((a, b) => (b.masuk + b.keluar) - (a.masuk + a.keluar));
+    }, [hasUploadedJenis, hasUploadedKeluar, jenisData]);
+
+    const suratKeluar = useMemo(() => {
+        return filteredRowsKeluar.length;
+    }, [filteredRowsKeluar]);
+
+    // Asal Surat: computed from asalData
     const asalSurat = useMemo(() => {
-        if (!hasUploadedAsal) return asalSuratDefault;
+        if (!hasUploadedAsal) return [] as { label: string; value: number }[];
         const kelompokCounts: Record<string, number> = {};
         asalData.forEach(d => {
             const key = d.kelompok || 'Lainnya';
@@ -215,7 +450,9 @@ export default function InsightTab() {
     };
 
     // --- Line Chart Helpers ---
-    const trendMax = Math.max(...trendMasuk, ...trendKeluar);
+    const trendMax = Math.max(...trendMasuk, ...trendKeluar, 1);
+    const gridStep = trendMax <= 500 ? 100 : trendMax <= 1500 ? 200 : 500;
+    const gridLines = Array.from({ length: Math.ceil(trendMax / gridStep) + 1 }, (_, i) => i * gridStep);
     const chartW = 400, chartH = 180, padL = 45, padR = 15, padT = 20, padB = 35;
     const plotW = chartW - padL - padR;
     const plotH = chartH - padT - padB;
@@ -228,8 +465,8 @@ export default function InsightTab() {
         }).join(' ');
 
     // --- Bar Chart Helper ---
-    const jenisMax = Math.max(...jenisKategori.flatMap(j => [j.masuk, j.keluar]));
-    const asalMax = Math.max(...asalSurat.map(a => a.value));
+    const jenisMax = Math.max(...jenisKategori.flatMap(j => [j.masuk, j.keluar]), 1);
+    const asalMax = Math.max(...asalSurat.map(a => a.value), 1);
 
     const handleDownloadPNG = async () => {
         if (!dashboardRef.current) return;
@@ -256,57 +493,204 @@ export default function InsightTab() {
             {/* ===== PENGELOMPOKAN SECTION ===== */}
             <div className="pg-section">
                 <div className="pg-header">
-                    <h2 className="pg-title">PENGELOMPOKAN DATA ASAL SURAT</h2>
+                    <h2 className="pg-title">PENGELOMPOKAN DATA SURAT</h2>
                     <div className="pg-header-right">
                         <label className="pg-upload-btn">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                            Upload Excel
+                            Upload Surat Masuk
                             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUpload} />
                         </label>
-                        <div className="pg-badge green"><CheckCircleIcon className="hi-icon" /> Sudah: {sudahCount}</div>
-                        <div className="pg-badge red"><XCircleIcon className="hi-icon" /> Belum: {belumCount}</div>
+                        <label className="pg-upload-btn pg-upload-btn-keluar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                            Upload Surat Keluar
+                            <input ref={fileInputRefKeluar} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUploadKeluar} />
+                        </label>
                     </div>
                 </div>
-                <div className="pg-body">
-                    <div className="pg-sidebar">
-                        <div className="pg-sidebar-title">FILTER KELOMPOK</div>
-                        {allKelompok.map(g => (
-                            <label key={g} className="pg-check-row">
-                                <input type="checkbox" checked={checkedGroups.has(g)} onChange={() => toggleGroup(g)} />
-                                <span className="pg-check-label">{g}</span>
-                                <span className="pg-check-count">({groupCount(g)})</span>
-                            </label>
-                        ))}
-                        <div className="pg-sidebar-divider" />
-                        <div className="pg-sidebar-summary">
-                            <span><CheckCircleIcon className="hi-icon" /> Sudah dikelompok: <b>{sudahCount}</b></span>
-                            <span><XCircleIcon className="hi-icon" /> Belum dikelompok: <b>{belumCount}</b></span>
+
+                {/* Upload Success Notification */}
+                {uploadInfo && (
+                    <div className="upload-notif">
+                        <div className="upload-notif-content">
+                            <span className="upload-notif-icon"><CheckCircleIcon className="hi-icon-lg" /></span>
+                            <div className="upload-notif-text">
+                                <strong>Upload berhasil!</strong>
+                                {uploadInfo.totalRowsMasuk != null && (
+                                    <span>📥 Surat Masuk: {uploadInfo.totalRowsMasuk.toLocaleString()} baris &bull; {uploadInfo.jenisCount} jenis ({uploadInfo.jenisMatched} cocok, {uploadInfo.jenisUnmatched} belum) &bull; {uploadInfo.asalCount} asal ({uploadInfo.asalMatched} cocok, {uploadInfo.asalUnmatched} belum)</span>
+                                )}
+                                {uploadInfo.totalRowsKeluar != null && (
+                                    <span>📤 Surat Keluar: {uploadInfo.totalRowsKeluar.toLocaleString()} baris &bull; {uploadInfo.keluarJenisCount} jenis ({uploadInfo.keluarJenisMatched} cocok, {uploadInfo.keluarJenisUnmatched} belum)</span>
+                                )}
+                            </div>
+                            <div className="upload-notif-actions">
+                                <button className="upload-notif-btn" onClick={() => jenisChartRef.current?.scrollIntoView({ behavior: 'smooth' })}>
+                                    <ChartBarIcon className="hi-icon" /> Grafik Jenis <ArrowDownIcon className="hi-icon-sm" />
+                                </button>
+                                <button className="upload-notif-btn" onClick={() => asalChartRef.current?.scrollIntoView({ behavior: 'smooth' })}>
+                                    <ChartBarIcon className="hi-icon" /> Grafik Asal <ArrowDownIcon className="hi-icon-sm" />
+                                </button>
+                            </div>
+                            <button className="upload-notif-close" onClick={() => setUploadInfo(null)}><XMarkIcon className="hi-icon" /></button>
                         </div>
-                        <label className="pg-check-row pg-unmapped-toggle">
-                            <input type="checkbox" checked={showUnmappedOnly} onChange={() => setShowUnmappedOnly(!showUnmappedOnly)} />
-                            <span className="pg-check-label">Hanya belum dikelompok</span>
-                        </label>
-                        <button className="pg-create-btn" onClick={() => { setShowCreateModal(true); setSearchAsal(''); setNewGroupName(''); setNewGroupSelected(new Set()); }}>
-                            + Buat Kelompok Baru
-                        </button>
                     </div>
-                    <div className="pg-table-wrap">
-                        {asalData.length === 0 ? (
+                )}
+
+                {/* Month Filter Dropdown */}
+                {availableRange && (
+                    <div className="pg-month-filter">
+                        <span className="pg-month-label">Filter Bulan:</span>
+                        <select
+                            className="pg-month-select"
+                            value={bulanDari}
+                            onChange={e => {
+                                const v = Number(e.target.value);
+                                setBulanDari(v);
+                                if (v > bulanSampai) setBulanSampai(v);
+                            }}
+                        >
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                <option key={m} value={m}>{MONTH_LABELS_FULL[m - 1]}</option>
+                            ))}
+                        </select>
+                        <span className="pg-month-dash">—</span>
+                        <select
+                            className="pg-month-select"
+                            value={bulanSampai}
+                            onChange={e => {
+                                const v = Number(e.target.value);
+                                setBulanSampai(v);
+                                if (v < bulanDari) setBulanDari(v);
+                            }}
+                        >
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                <option key={m} value={m}>{MONTH_LABELS_FULL[m - 1]}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                {/* ===== TAB BAR ===== */}
+                <div className="pg-tab-bar">
+                    <button className={`pg-tab ${activeTab === 'jenis' ? 'pg-tab-active' : ''}`} onClick={() => setActiveTab('jenis')}>
+                        JENIS SURAT PER KATEGORI
+                        <span className="pg-badge-sm green"><CheckCircleIcon className="hi-icon" /> {jenisSudahCount}</span>
+                        <span className="pg-badge-sm red"><XCircleIcon className="hi-icon" /> {jenisBelumCount}</span>
+                    </button>
+                    <button className={`pg-tab ${activeTab === 'asal' ? 'pg-tab-active' : ''}`} onClick={() => setActiveTab('asal')}>
+                        ASAL SURAT MASUK
+                        <span className="pg-badge-sm green"><CheckCircleIcon className="hi-icon" /> {sudahCount}</span>
+                        <span className="pg-badge-sm red"><XCircleIcon className="hi-icon" /> {belumCount}</span>
+                    </button>
+                </div>
+
+                {/* ===== TAB JENIS SURAT ===== */}
+                {activeTab === 'jenis' && (
+                    <div className="pg-tab-content">
+                        {jenisData.length === 0 ? (
                             <div className="pg-empty-state">
                                 <DocumentTextIcon className="pg-empty-state-icon" />
                                 <h3>Belum ada data</h3>
-                                <p>Upload file Excel untuk memulai pengelompokan data asal surat.</p>
-                                <label className="pg-upload-btn pg-upload-btn-lg">
+                                <p>Upload Excel untuk memulai pengelompokan jenis surat.</p>
+                                <label className="pg-upload-btn pg-upload-btn-lg pg-upload-btn-inline">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                                     Upload Excel
-                                    <input ref={fileInputRef} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUpload} />
+                                    <input ref={fileInputRef2} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUpload} />
                                 </label>
                             </div>
                         ) : (
                             <>
-                                <div className="pg-table-header">
-                                    <span>Menampilkan {filteredAsal.length} dari {asalData.length} data</span>
+                                {/* Toolbar */}
+                                <div className="pg-toolbar">
+                                    <span>Menampilkan {filteredJenis.length} dari {jenisData.length} jenis</span>
+                                    <button className="pg-filter-toggle" onClick={() => setShowJenisFilter(!showJenisFilter)}>
+                                        Filter Kategori {showJenisFilter ? '▲' : '▼'}
+                                    </button>
                                 </div>
+                                {/* Filter Panel — JENIS KATEGORI */}
+                                {showJenisFilter && (
+                                    <div className="pg-filter-panel">
+                                        <div className="pg-filter-grid">
+                                            {allJenisKategori.map(g => (
+                                                <label key={g} className="pg-filter-chip">
+                                                    <input type="checkbox" checked={checkedJenisGroups.has(g)} onChange={() => toggleJenisGroup(g)} />
+                                                    <span className="pg-check-label">{g}</span>
+                                                    <span className="pg-check-count">({jenisGroupCount(g)})</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Tabel Jenis (full width, 4 kolom) */}
+                                <div className="pg-table-scroll">
+                                    <table className="pg-table">
+                                        <thead><tr><th>Jenis Surat</th><th>Masuk</th><th>Keluar</th><th>Kategori</th></tr></thead>
+                                        <tbody>
+                                            {filteredJenis.map((d, i) => (
+                                                <tr key={i} className={d.kategori === '' ? 'pg-row-unmapped' : ''}>
+                                                    <td className="pg-td-asal">{d.jenis}</td>
+                                                    <td className="pg-td-count">{d.countMasuk > 0 ? d.countMasuk.toLocaleString() : <span className="pg-td-dash">&mdash;</span>}</td>
+                                                    <td className="pg-td-count">{d.countKeluar > 0 ? d.countKeluar.toLocaleString() : <span className="pg-td-dash">&mdash;</span>}</td>
+                                                    <td className="pg-td-group">
+                                                        {d.kategori ? (
+                                                            <span className="pg-tag green">{d.kategori}</span>
+                                                        ) : (
+                                                            <button className="pg-tag red" onClick={() => setAssignJenis(d)}><ExclamationCircleIcon className="hi-icon" /> Belum — Assign</button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {/* Footer */}
+                                <div className="pg-table-footer">
+                                    <div className="pg-footer-stats">
+                                        <span className="pg-footer-stat green"><CheckCircleIcon className="hi-icon" /> Sudah: <b>{jenisSudahCount}</b></span>
+                                        <span className="pg-footer-stat red"><XCircleIcon className="hi-icon" /> Belum: <b>{jenisBelumCount}</b></span>
+                                    </div>
+                                    <label className="pg-footer-toggle">
+                                        <input type="checkbox" checked={showJenisUnmappedOnly} onChange={() => setShowJenisUnmappedOnly(!showJenisUnmappedOnly)} />
+                                        Hanya belum dikategori
+                                    </label>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* ===== TAB ASAL SURAT ===== */}
+                {activeTab === 'asal' && (
+                    <div className="pg-tab-content">
+                        {asalData.length === 0 ? (
+                            <div className="pg-empty-state">
+                                <DocumentTextIcon className="pg-empty-state-icon" />
+                                <h3>Belum ada data</h3>
+                                <p>Upload Excel untuk memulai pengelompokan asal surat.</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Toolbar */}
+                                <div className="pg-toolbar">
+                                    <span>Menampilkan {filteredAsal.length} dari {asalData.length} data</span>
+                                    <button className="pg-filter-toggle" onClick={() => setShowAsalFilter(!showAsalFilter)}>
+                                        Filter Kelompok {showAsalFilter ? '▲' : '▼'}
+                                    </button>
+                                </div>
+                                {/* Filter Panel — KELOMPOK */}
+                                {showAsalFilter && (
+                                    <div className="pg-filter-panel">
+                                        <div className="pg-filter-grid">
+                                            {allKelompok.map(g => (
+                                                <label key={g} className="pg-filter-chip">
+                                                    <input type="checkbox" checked={checkedGroups.has(g)} onChange={() => toggleGroup(g)} />
+                                                    <span className="pg-check-label">{g}</span>
+                                                    <span className="pg-check-count">({groupCount(g)})</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Tabel Asal (full width) */}
                                 <div className="pg-table-scroll">
                                     <table className="pg-table">
                                         <thead><tr><th>Asal</th><th>Jumlah</th><th>Kelompok</th></tr></thead>
@@ -319,7 +703,7 @@ export default function InsightTab() {
                                                         {d.kelompok ? (
                                                             <span className="pg-tag green">{d.kelompok}</span>
                                                         ) : (
-                                                            <button className="pg-tag red" onClick={() => setAssignAsal(d)}><ExclamationCircleIcon className="hi-icon" /> Belum — Klik assign</button>
+                                                            <button className="pg-tag red" onClick={() => setAssignAsal(d)}><ExclamationCircleIcon className="hi-icon" /> Belum — Assign</button>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -327,47 +711,45 @@ export default function InsightTab() {
                                         </tbody>
                                     </table>
                                 </div>
+                                {/* Footer */}
+                                <div className="pg-table-footer">
+                                    <div className="pg-footer-stats">
+                                        <span className="pg-footer-stat green"><CheckCircleIcon className="hi-icon" /> Sudah: <b>{sudahCount}</b></span>
+                                        <span className="pg-footer-stat red"><XCircleIcon className="hi-icon" /> Belum: <b>{belumCount}</b></span>
+                                    </div>
+                                    <label className="pg-footer-toggle">
+                                        <input type="checkbox" checked={showUnmappedOnly} onChange={() => setShowUnmappedOnly(!showUnmappedOnly)} />
+                                        Hanya belum dikelompok
+                                    </label>
+                                    <button className="pg-create-btn-sm" onClick={() => { setShowCreateModal(true); setSearchAsal(''); setNewGroupName(''); setNewGroupSelected(new Set()); }}>
+                                        + Buat Kelompok Baru
+                                    </button>
+                                </div>
                             </>
                         )}
-                    </div>
-                </div>
-
-                {/* Upload Success Notification */}
-                {uploadInfo && (
-                    <div className="upload-notif">
-                        <div className="upload-notif-content">
-                            <span className="upload-notif-icon"><CheckCircleIcon className="hi-icon-lg" /></span>
-                            <div className="upload-notif-text">
-                                <strong>Upload berhasil!</strong>
-                                <span><DocumentTextIcon className="hi-icon" /> {uploadInfo.totalRows.toLocaleString()} baris dibaca • {uploadInfo.categories} jenis surat terdeteksi</span>
-                            </div>
-                            <button className="upload-notif-btn" onClick={() => jenisChartRef.current?.scrollIntoView({ behavior: 'smooth' })}>
-                                <ChartBarIcon className="hi-icon" /> Lihat Grafik Jenis Surat <ArrowDownIcon className="hi-icon-sm" />
-                            </button>
-                            <button className="upload-notif-close" onClick={() => setUploadInfo(null)}><XMarkIcon className="hi-icon" /></button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Upload Asal Surat Notification */}
-                {uploadAsalInfo && (
-                    <div className="upload-notif">
-                        <div className="upload-notif-content">
-                            <span className="upload-notif-icon"><CheckCircleIcon className="hi-icon-lg" /></span>
-                            <div className="upload-notif-text">
-                                <strong>Data Asal Surat berhasil diproses!</strong>
-                                <span><DocumentTextIcon className="hi-icon" /> {uploadAsalInfo.totalRows.toLocaleString()} baris • {uploadAsalInfo.categories} kelompok • ✓ {uploadAsalInfo.matched.toLocaleString()} cocok{uploadAsalInfo.unmatched > 0 ? ` • ✗ ${uploadAsalInfo.unmatched.toLocaleString()} tidak terpetakan` : ''}</span>
-                            </div>
-                            <button className="upload-notif-btn" onClick={() => asalChartRef.current?.scrollIntoView({ behavior: 'smooth' })}>
-                                <ChartBarIcon className="hi-icon" /> Lihat Grafik Asal Surat <ArrowDownIcon className="hi-icon-sm" />
-                            </button>
-                            <button className="upload-notif-close" onClick={() => setUploadAsalInfo(null)}><XMarkIcon className="hi-icon" /></button>
-                        </div>
                     </div>
                 )}
             </div>
 
-            {/* ===== ASSIGN MODAL ===== */}
+            {/* ===== ASSIGN JENIS MODAL ===== */}
+            {assignJenis && (
+                <div className="pg-overlay" onClick={() => setAssignJenis(null)}>
+                    <div className="pg-modal" onClick={e => e.stopPropagation()}>
+                        <div className="pg-modal-header">
+                            <h3>Assign Kategori</h3>
+                            <button className="pg-modal-close" onClick={() => setAssignJenis(null)}><XMarkIcon className="hi-icon" /></button>
+                        </div>
+                        <p className="pg-modal-sub">Assign <b>&quot;{assignJenis.jenis}&quot;</b> ke kategori:</p>
+                        <div className="pg-modal-list">
+                            {allJenisKategori.map(g => (
+                                <button key={g} className="pg-modal-option" onClick={() => handleAssignJenis(g)}>{g}</button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ===== ASSIGN ASAL MODAL ===== */}
             {assignAsal && (
                 <div className="pg-overlay" onClick={() => setAssignAsal(null)}>
                     <div className="pg-modal" onClick={e => e.stopPropagation()}>
@@ -448,12 +830,12 @@ export default function InsightTab() {
                     </div>
                     <div className="dash-period">
                         <span className="period-label">PERIODE</span>
-                        <span className="period-badge">JAN</span>
+                        <span className="period-badge">{availableRange ? MONTH_LABELS[bulanDari - 1].toUpperCase() : 'JAN'}</span>
                         <span className="period-sep">—</span>
-                        <span className="period-badge">SEP</span>
+                        <span className="period-badge">{availableRange ? MONTH_LABELS[bulanSampai - 1].toUpperCase() : 'SEP'}</span>
                         <span className="period-year">
-                            <span className="year-top">20</span>
-                            <span className="year-bottom">25</span>
+                            <span className="year-top">{dataYear ? String(dataYear.min).slice(0, 2) : '20'}</span>
+                            <span className="year-bottom">{dataYear ? String(dataYear.min).slice(2) : '25'}</span>
                         </span>
                     </div>
                 </div>
@@ -524,7 +906,7 @@ export default function InsightTab() {
                         <div className="card-body tren-body">
                             <svg viewBox={`0 0 ${chartW} ${chartH}`} className="line-chart">
                                 {/* Grid lines */}
-                                {[0, 200, 400, 600, 800, 1000, 1200, 1400].map(v => {
+                                {gridLines.map(v => {
                                     const y = padT + plotH - (v / trendMax) * plotH;
                                     return (
                                         <g key={v}>
@@ -577,27 +959,33 @@ export default function InsightTab() {
                     <div className="card card-jenis" ref={jenisChartRef}>
                         <div className="card-label purple-label">JENIS SURAT PER KATEGORI</div>
                         <div className="card-body jenis-body">
-                            {[...jenisKategori].reverse().map((item, idx) => (
-                                <div className="hbar-row" key={idx}>
-                                    <div className="hbar-label">{item.label}</div>
-                                    <div className="hbar-bars">
-                                        <div className="hbar-track">
-                                            <div className="hbar-fill keluar-fill" style={{ width: `${(item.keluar / jenisMax) * 100}%` }}>
-                                                <span className="hbar-val">{item.keluar > 0 ? item.keluar.toLocaleString() : ''}</span>
+                            {jenisKategori.length === 0 ? (
+                                <div className="chart-empty">Belum ada data — upload Excel untuk melihat grafik</div>
+                            ) : (
+                                <>
+                                    {[...jenisKategori].reverse().map((item, idx) => (
+                                        <div className="hbar-row" key={idx}>
+                                            <div className="hbar-label">{item.label}</div>
+                                            <div className="hbar-bars">
+                                                <div className="hbar-track">
+                                                    <div className="hbar-fill keluar-fill" style={{ width: `${(item.keluar / jenisMax) * 100}%` }}>
+                                                        <span className="hbar-val">{item.keluar > 0 ? item.keluar.toLocaleString() : ''}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="hbar-track">
+                                                    <div className="hbar-fill masuk-fill" style={{ width: `${(item.masuk / jenisMax) * 100}%` }}>
+                                                        <span className="hbar-val">{item.masuk > 0 ? item.masuk.toLocaleString() : ''}</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="hbar-track">
-                                            <div className="hbar-fill masuk-fill" style={{ width: `${(item.masuk / jenisMax) * 100}%` }}>
-                                                <span className="hbar-val">{item.masuk > 0 ? item.masuk.toLocaleString() : ''}</span>
-                                            </div>
-                                        </div>
+                                    ))}
+                                    <div className="jenis-legend">
+                                        <span className="legend-item"><span className="legend-dot pink"></span> Surat Keluar</span>
+                                        <span className="legend-item"><span className="legend-dot orange"></span> Surat Masuk</span>
                                     </div>
-                                </div>
-                            ))}
-                            <div className="jenis-legend">
-                                <span className="legend-item"><span className="legend-dot pink"></span> Surat Keluar</span>
-                                <span className="legend-item"><span className="legend-dot orange"></span> Surat Masuk</span>
-                            </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -605,16 +993,20 @@ export default function InsightTab() {
                     <div className="card card-asal" ref={asalChartRef}>
                         <div className="card-label purple-label">ASAL SURAT MASUK</div>
                         <div className="card-body asal-body">
-                            {[...asalSurat].reverse().map((item, idx) => (
-                                <div className="asal-row" key={idx}>
-                                    <div className="asal-label">{item.label}</div>
-                                    <div className="asal-bar-wrap">
-                                        <div className="asal-bar" style={{ width: `${(item.value / asalMax) * 100}%` }}>
+                            {asalSurat.length === 0 ? (
+                                <div className="chart-empty">Belum ada data — upload Excel untuk melihat grafik</div>
+                            ) : (
+                                [...asalSurat].reverse().map((item, idx) => (
+                                    <div className="asal-row" key={idx}>
+                                        <div className="asal-label">{item.label}</div>
+                                        <div className="asal-bar-wrap">
+                                            <div className="asal-bar" style={{ width: `${(item.value / asalMax) * 100}%` }}>
+                                            </div>
+                                            <span className="asal-val">{item.value.toLocaleString()}</span>
                                         </div>
-                                        <span className="asal-val">{item.value.toLocaleString()}</span>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
@@ -783,7 +1175,7 @@ export default function InsightTab() {
                     text-align: right;
                     line-height: 1.2;
                 }
-                .hbar-bars { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+                .hbar-bars { flex: 1; display: flex; flex-direction: column; gap: 2px; padding-right: 2.5rem; }
                 .hbar-track { height: 14px; background: #f1f0f6; border-radius: 3px; overflow: visible; position: relative; }
                 .hbar-fill {
                     height: 100%;
@@ -801,8 +1193,8 @@ export default function InsightTab() {
                     color: #1e1b4b;
                     white-space: nowrap;
                     position: absolute;
-                    right: -4px;
-                    transform: translateX(100%);
+                    left: 100%;
+                    margin-left: 4px;
                 }
                 .jenis-legend { display: flex; gap: 1rem; margin-top: 0.75rem; justify-content: center; }
 
@@ -858,6 +1250,40 @@ export default function InsightTab() {
                     gap: 0.6rem;
                     flex-wrap: wrap;
                 }
+                .pg-month-filter {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    padding: 0.75rem 1.75rem;
+                    background: #faf9fd;
+                    border-bottom: 1px solid #e8e5f0;
+                }
+                .pg-month-label {
+                    font-size: 0.85rem;
+                    font-weight: 700;
+                    color: #1e1b4b;
+                }
+                .pg-month-select {
+                    padding: 0.45rem 0.75rem;
+                    border: 1.5px solid #e8e5f0;
+                    border-radius: 8px;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    color: #1e1b4b;
+                    background: #fff;
+                    cursor: pointer;
+                    outline: none;
+                    transition: border-color 0.2s;
+                }
+                .pg-month-select:focus {
+                    border-color: #7c3aed;
+                    box-shadow: 0 0 0 3px rgba(124,58,237,0.08);
+                }
+                .pg-month-dash {
+                    font-size: 1rem;
+                    color: #94a3b8;
+                    font-weight: 600;
+                }
                 .pg-upload-btn {
                     display: flex;
                     align-items: center;
@@ -878,6 +1304,17 @@ export default function InsightTab() {
                     transform: translateY(-1px);
                 }
                 .pg-upload-btn svg { width: 16px; height: 16px; }
+                .pg-upload-btn-keluar {
+                    background: rgba(192,38,211,0.35);
+                    border-color: rgba(192,38,211,0.4);
+                }
+                .pg-upload-btn-keluar:hover {
+                    background: rgba(192,38,211,0.5);
+                }
+                .pg-td-dash {
+                    color: #cbd5e1;
+                    font-weight: 400;
+                }
                 .pg-badge {
                     padding: 0.45rem 0.9rem;
                     border-radius: 8px;
@@ -888,30 +1325,168 @@ export default function InsightTab() {
                 .pg-badge.green { background: #dcfce7; color: #166534; }
                 .pg-badge.red { background: #fee2e2; color: #991b1b; }
 
-                .pg-body {
+                /* Tab Bar */
+                .pg-tab-bar {
                     display: flex;
-                    min-height: 420px;
+                    background: #f8f7fc;
+                    border-bottom: 2px solid #e8e5f0;
                 }
-
-                /* Sidebar */
-                .pg-sidebar {
-                    width: 280px;
-                    min-width: 280px;
-                    border-right: 1px solid #f0eef5;
-                    padding: 1.25rem;
+                .pg-tab {
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    padding: 0.85rem 1.25rem;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    color: #94a3b8;
+                    background: transparent;
+                    border: none;
+                    border-bottom: 3px solid transparent;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .pg-tab:hover { color: #7c3aed; background: #f0ecf9; }
+                .pg-tab-active { color: #312e81; border-bottom-color: #7c3aed; background: #fff; }
+                .pg-tab-content {
                     display: flex;
                     flex-direction: column;
-                    gap: 0.3rem;
-                    background: #faf9fd;
                 }
-                .pg-sidebar-title {
-                    font-size: 0.75rem;
-                    font-weight: 800;
+                .pg-toolbar {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 0.75rem 1.25rem;
+                    font-size: 0.82rem;
+                    color: #64748b;
+                    border-bottom: 1px solid #f0eef5;
+                    background: #fdfcff;
+                    font-weight: 600;
+                }
+                .pg-filter-toggle {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    padding: 0.45rem 0.9rem;
+                    background: #f0ecf9;
+                    border: 1px solid #e8e5f0;
+                    border-radius: 8px;
+                    font-size: 0.8rem;
+                    font-weight: 600;
                     color: #7c3aed;
-                    letter-spacing: 1.5px;
-                    margin-bottom: 0.5rem;
-                    text-transform: uppercase;
+                    cursor: pointer;
+                    transition: all 0.15s;
                 }
+                .pg-filter-toggle:hover { background: #e8e3f6; }
+                .pg-filter-panel {
+                    padding: 0.75rem 1.25rem;
+                    background: #f8f7fc;
+                    border-bottom: 1px solid #e8e5f0;
+                }
+                .pg-filter-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                    gap: 0.4rem;
+                }
+                .pg-filter-chip {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0.35rem 0.6rem;
+                    border-radius: 6px;
+                    font-size: 0.82rem;
+                    cursor: pointer;
+                    transition: background 0.15s;
+                }
+                .pg-filter-chip:hover { background: #f0ecf9; }
+                .pg-filter-chip input[type="checkbox"] {
+                    accent-color: #7c3aed;
+                    width: 16px;
+                    height: 16px;
+                    cursor: pointer;
+                }
+                .pg-table-footer {
+                    display: flex;
+                    align-items: center;
+                    gap: 1.5rem;
+                    padding: 0.75rem 1.25rem;
+                    background: #faf9fd;
+                    border-top: 2px solid #e8e5f0;
+                    flex-wrap: wrap;
+                }
+                .pg-footer-stats {
+                    display: flex;
+                    gap: 1rem;
+                    font-size: 0.82rem;
+                    color: #64748b;
+                    align-items: center;
+                }
+                .pg-footer-stat {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                }
+                .pg-footer-stat.green { color: #166534; }
+                .pg-footer-stat.red { color: #991b1b; }
+                .pg-footer-stat b { margin-left: 0.15rem; }
+                .pg-footer-toggle {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 0.82rem;
+                    padding: 0.4rem 0.75rem;
+                    background: #fef9e7;
+                    border: 1px solid #fde68a;
+                    border-radius: 8px;
+                    cursor: pointer;
+                }
+                .pg-footer-toggle input[type="checkbox"] {
+                    accent-color: #7c3aed;
+                    width: 15px;
+                    height: 15px;
+                    cursor: pointer;
+                }
+                .pg-create-btn-sm {
+                    margin-left: auto;
+                    padding: 0.5rem 1rem;
+                    background: linear-gradient(135deg, #7c3aed, #a855f7);
+                    color: #fff;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    letter-spacing: 0.3px;
+                }
+                .pg-create-btn-sm:hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+                    background: linear-gradient(135deg, #6d28d9, #9333ea);
+                }
+                .pg-badge-sm {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                    padding: 0.2rem 0.55rem;
+                    border-radius: 6px;
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                }
+                .pg-badge-sm.green { background: #dcfce7; color: #166534; }
+                .pg-badge-sm.red { background: #fee2e2; color: #991b1b; }
+
+                .pg-upload-btn-inline {
+                    background: linear-gradient(135deg, #7c3aed, #a855f7);
+                    border: none;
+                    color: #fff;
+                }
+                .pg-upload-btn-inline:hover {
+                    background: linear-gradient(135deg, #6d28d9, #9333ea);
+                }
+
+
                 .pg-check-row {
                     display: flex;
                     align-items: center;
@@ -940,49 +1515,6 @@ export default function InsightTab() {
                     font-size: 0.75rem;
                     font-weight: 700;
                 }
-                .pg-sidebar-divider {
-                    height: 1px;
-                    background: linear-gradient(90deg, transparent, #e0ddf0, transparent);
-                    margin: 0.75rem 0;
-                }
-                .pg-sidebar-summary {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.35rem;
-                    font-size: 0.8rem;
-                    color: #64748b;
-                    padding: 0.5rem;
-                    background: #fff;
-                    border-radius: 8px;
-                    border: 1px solid #e8e5f0;
-                }
-                .pg-sidebar-summary b { color: #1e1b4b; }
-                .pg-unmapped-toggle {
-                    margin-top: 0.4rem;
-                    padding: 0.5rem 0.6rem;
-                    background: #fef9e7;
-                    border-radius: 8px;
-                    border: 1px solid #fde68a;
-                }
-                .pg-create-btn {
-                    margin-top: auto;
-                    padding: 0.7rem 1rem;
-                    background: linear-gradient(135deg, #7c3aed, #a855f7);
-                    color: #fff;
-                    border: none;
-                    border-radius: 10px;
-                    font-size: 0.85rem;
-                    font-weight: 700;
-                    cursor: pointer;
-                    transition: all 0.25s;
-                    letter-spacing: 0.3px;
-                }
-                .pg-create-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 6px 20px rgba(124,58,237,0.35);
-                    background: linear-gradient(135deg, #6d28d9, #9333ea);
-                }
-
                 /* Table */
                 .pg-table-wrap {
                     flex: 1;
@@ -1068,7 +1600,7 @@ export default function InsightTab() {
                     width: 80px;
                     color: #4338ca;
                 }
-                .pg-td-group { width: 220px; }
+                .pg-td-group { min-width: 200px; }
                 .pg-tag {
                     display: inline-block;
                     padding: 0.25rem 0.65rem;
@@ -1076,6 +1608,9 @@ export default function InsightTab() {
                     font-size: 0.7rem;
                     font-weight: 600;
                     letter-spacing: 0.2px;
+                    white-space: normal;
+                    word-break: break-word;
+                    line-height: 1.4;
                 }
                 .pg-tag.green { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
                 .pg-tag.red {
@@ -1254,6 +1789,17 @@ export default function InsightTab() {
                 .pg-btn-save:hover { box-shadow: 0 4px 14px rgba(124,58,237,0.3); transform: translateY(-1px); }
                 .pg-btn-save:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
                 .pg-empty { text-align: center; color: #94a3b8; font-size: 0.9rem; padding: 1.5rem; }
+                .chart-empty {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 120px;
+                    color: #94a3b8;
+                    font-size: 0.88rem;
+                    font-style: italic;
+                    text-align: center;
+                    padding: 2rem;
+                }
 
                 /* ===== Upload Notification ===== */
                 .upload-notif {
@@ -1306,6 +1852,11 @@ export default function InsightTab() {
                     transform: translateY(-1px);
                     box-shadow: 0 4px 14px rgba(124,58,237,0.3);
                 }
+                .upload-notif-actions {
+                    display: flex;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                }
                 .upload-notif-close {
                     background: none;
                     border: none;
@@ -1324,8 +1875,8 @@ export default function InsightTab() {
                 @media (max-width: 1100px) {
                     .top-row { flex-direction: column; }
                     .bottom-row { flex-direction: column; }
-                    .pg-body { flex-direction: column; }
-                    .pg-sidebar { width: 100%; min-width: 100%; border-right: none; border-bottom: 1px solid #f0eef5; }
+                    .pg-tab { font-size: 0.72rem; padding: 0.7rem 0.75rem; gap: 0.3rem; }
+                    .pg-filter-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
                 }
                 @media (max-width: 640px) {
                     .insight-page { padding: 0.75rem; }
