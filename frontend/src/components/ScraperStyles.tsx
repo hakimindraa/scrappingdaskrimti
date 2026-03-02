@@ -3,6 +3,8 @@ export default function ScraperStyles() {
         <style jsx global>{`
             .scraper-tab {
                 padding: 2rem;
+                background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 40%);
+                min-height: calc(100vh - 80px);
             }
 
             .tab-header {
@@ -171,9 +173,9 @@ export default function ScraperStyles() {
             .card {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
-                border-radius: 20px;
+                border-radius: 24px;
                 padding: 2rem;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
             }
 
             .main-card {
@@ -356,9 +358,11 @@ export default function ScraperStyles() {
                 flex-direction: column;
                 align-items: center;
                 padding: 1.25rem;
-                background: #f8faf9;
+                background: #ffffff;
                 border: 1px solid #e2e8f0;
-                border-radius: 14px;
+                border-radius: 16px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+                transition: all 0.2s;
             }
 
             .stat-card .stat-value {
@@ -958,8 +962,9 @@ export default function ScraperStyles() {
             .table-container {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
-                border-radius: 16px;
+                border-radius: 20px;
                 overflow-x: auto;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
             }
 
             .loading-state, .empty-state {
@@ -979,14 +984,14 @@ export default function ScraperStyles() {
 
             .data-table th {
                 padding: 1rem 1.25rem;
-                background: linear-gradient(135deg, rgba(6, 78, 59, 0.06), rgba(16, 185, 129, 0.04));
+                background: #f0fdf4;
                 color: #064e3b;
                 font-size: 0.75rem;
-                font-weight: 600;
+                font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
                 text-align: left;
-                border-bottom: 1px solid #e2e8f0;
+                border-bottom: 2px solid #d1fae5;
                 white-space: nowrap;
             }
 
@@ -998,7 +1003,7 @@ export default function ScraperStyles() {
             }
 
             .data-table tr:hover {
-                background: #f8faf9;
+                background: #f0fdf4;
             }
 
             .data-table tr:last-child td {
@@ -1016,17 +1021,17 @@ export default function ScraperStyles() {
             .page-btn {
                 padding: 0.625rem 1.25rem;
                 background: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
+                border: 1.5px solid #e2e8f0;
+                border-radius: 12px;
                 color: #1e293b;
                 cursor: pointer;
-                font-weight: 500;
+                font-weight: 600;
                 transition: all 0.2s;
             }
 
             .page-btn:hover:not(:disabled) {
-                background: #f8faf9;
-                border-color: #064e3b;
+                background: #f0fdf4;
+                border-color: #a7f3d0;
                 color: #064e3b;
             }
 

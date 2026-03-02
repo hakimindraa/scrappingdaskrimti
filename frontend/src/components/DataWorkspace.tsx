@@ -31,34 +31,34 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isDragOver, setIsDragOver] = useState(false);
-    
+
     // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState<FilterConfig[]>([]);
     const [showFilterPanel, setShowFilterPanel] = useState(false);
-    
+
     // Sort
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
-    
+
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(25);
-    
+
     // Selection
     const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-    
+
     // View mode
     const [viewMode, setViewMode] = useState<'table' | 'cards' | 'summary'>('table');
-    
+
     // Print ref
     const printRef = useRef<HTMLDivElement>(null);
-    
+
     // Toast notification
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     const sourceTitle = source === 'sipede' ? 'SIPEDE' : 'SPDP';
     const sourceColor = source === 'sipede' ? '#0ea5e9' : '#8b5cf6';
-    
+
     // Dynamic API URL - use current hostname for external IP access
     const getApiUrl = useCallback(() => {
         if (typeof window === 'undefined') return source === 'spdp' ? 'http://localhost:5001' : 'http://localhost:5000';
@@ -66,7 +66,7 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
         const port = source === 'spdp' ? '5001' : '5000';
         return `http://${hostname}:${port}`;
     }, [source]);
-    
+
     const showToast = useCallback((message: string, type: 'success' | 'error') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 3000);
@@ -79,26 +79,26 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
         try {
             const apiUrl = getApiUrl();
             const infoRes = await fetch(`${apiUrl}/api/scraper/data-info`);
-            
+
             if (!infoRes.ok) {
                 throw new Error(`Server error: ${infoRes.status}`);
             }
-            
+
             const info = await infoRes.json();
-            
+
             if (!info.exists || info.row_count === 0) {
                 setError('Tidak ada data tersedia. Silakan scrape data terlebih dahulu.');
                 return;
             }
 
             const dataRes = await fetch(`${apiUrl}/api/scraper/data?page=1&limit=${info.row_count + 100}`);
-            
+
             if (!dataRes.ok) {
                 throw new Error(`Server error: ${dataRes.status}`);
             }
-            
+
             const result = await dataRes.json();
-            
+
             if (result.success && result.data && result.data.length > 0) {
                 setData(result.data);
                 setHeaders(Object.keys(result.data[0]));
@@ -229,13 +229,13 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
     const statusSummary = useMemo(() => {
         const statusCol = headers.find(h => h.toLowerCase().includes('status'));
         if (!statusCol) return null;
-        
+
         const counts: Record<string, number> = {};
         data.forEach(row => {
             const status = String(row[statusCol] || 'Tidak Ada');
             counts[status] = (counts[status] || 0) + 1;
         });
-        
+
         return Object.entries(counts)
             .sort((a, b) => b[1] - a[1])
             .map(([status, count]) => ({ status, count, percentage: Math.round((count / data.length) * 100) }));
@@ -307,7 +307,7 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 const s = String(str ?? '-');
                 return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             };
-            
+
             const printContent = `
             <!DOCTYPE html>
             <html>
@@ -346,9 +346,9 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 ` : ''}
                 <table>
                     <thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
-                    <tbody>${filteredData.slice(0, 500).map(row => 
-                        `<tr>${headers.map(h => `<td>${escapeHtml(row[h])}</td>`).join('')}</tr>`
-                    ).join('')}</tbody>
+                    <tbody>${filteredData.slice(0, 500).map(row =>
+                `<tr>${headers.map(h => `<td>${escapeHtml(row[h])}</td>`).join('')}</tr>`
+            ).join('')}</tbody>
                 </table>
                 ${filteredData.length > 500 ? `<p><em>Menampilkan 500 dari ${filteredData.length} data</em></p>` : ''}
                 <div class="footer">
@@ -357,15 +357,15 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
             </body>
             </html>
         `;
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(printContent);
-            printWindow.document.close();
-            printWindow.print();
-            showToast('Dokumen PDF siap diprint', 'success');
-        } else {
-            showToast('Popup diblokir. Izinkan popup untuk export PDF.', 'error');
-        }
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(printContent);
+                printWindow.document.close();
+                printWindow.print();
+                showToast('Dokumen PDF siap diprint', 'success');
+            } else {
+                showToast('Popup diblokir. Izinkan popup untuk export PDF.', 'error');
+            }
         } catch (err) {
             console.error('Export PDF error:', err);
             showToast('Gagal membuat PDF', 'error');
@@ -420,7 +420,7 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
     const handleSort = (column: string) => {
         setSortConfig(prev => {
             if (prev?.column === column) {
-                return prev.direction === 'asc' 
+                return prev.direction === 'asc'
                     ? { column, direction: 'desc' }
                     : null;
             }
@@ -443,7 +443,7 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
         const startIdx = (currentPage - 1) * rowsPerPage;
         const pageIndices = paginatedData.map((_, i) => startIdx + i);
         const allSelected = pageIndices.every(idx => selectedRows.has(idx));
-        
+
         const newSelected = new Set(selectedRows);
         if (allSelected) {
             pageIndices.forEach(idx => newSelected.delete(idx));
@@ -452,7 +452,7 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
         }
         setSelectedRows(newSelected);
     };
-    
+
     // Check if all current page rows are selected
     const isAllPageSelected = useMemo(() => {
         if (paginatedData.length === 0) return false;
@@ -544,34 +544,34 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 </div>
 
                 <style jsx>{`
-                    .workspace-container { padding: 2rem; min-height: calc(100vh - 80px); position: relative; }
-                    .toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.25rem; border-radius: 10px; font-size: 0.9rem; font-weight: 500; z-index: 1000; animation: toastSlide 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-                    .toast.success { background: #dcfce7; color: #166534; }
-                    .toast.error { background: #fef2f2; color: #dc2626; }
+                    .workspace-container { padding: 2rem; min-height: calc(100vh - 80px); position: relative; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 40%); }
+                    .toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.25rem; border-radius: 14px; font-size: 0.9rem; font-weight: 500; z-index: 1000; animation: toastSlide 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+                    .toast.success { background: #dcfce7; color: #166534; border: 1px solid #a7f3d0; }
+                    .toast.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
                     .toast svg { width: 18px; height: 18px; }
                     @keyframes toastSlide { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-                    .upload-section { max-width: 600px; margin: 3rem auto; text-align: center; }
+                    .upload-section { max-width: 600px; margin: 2rem auto; text-align: center; background: #fff; padding: 3rem 2.5rem; border-radius: 24px; box-shadow: 0 4px 24px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
                     .upload-header { margin-bottom: 2rem; }
-                    .upload-icon { width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
-                    .upload-icon svg { width: 32px; height: 32px; }
-                    .upload-header h2 { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem; }
-                    .upload-header p { color: #64748b; }
-                    .source-options { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
-                    .source-btn { display: flex; align-items: center; gap: 0.5rem; padding: 1rem 2rem; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-                    .source-btn.primary { background: ${sourceColor}; color: white; }
-                    .source-btn.primary:hover { filter: brightness(1.1); }
-                    .source-btn.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+                    .upload-icon { width: 72px; height: 72px; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important; }
+                    .upload-icon svg { width: 36px; height: 36px; color: #059669 !important; }
+                    .upload-header h2 { font-size: 1.5rem; font-weight: 800; color: #0f172a; margin-bottom: 0.5rem; }
+                    .upload-header p { color: #64748b; font-size: 0.92rem; }
+                    .source-options { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
+                    .source-btn { display: flex; align-items: center; gap: 0.6rem; padding: 1rem 2rem; border: none; border-radius: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.25s; }
+                    .source-btn.primary { background: linear-gradient(135deg, #064e3b, #059669); color: white; box-shadow: 0 4px 16px rgba(5,150,105,0.25); }
+                    .source-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(5,150,105,0.35); }
+                    .source-btn.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
                     .source-btn svg { width: 20px; height: 20px; }
-                    .divider { color: #94a3b8; font-size: 0.875rem; }
-                    .upload-dropzone { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 2rem; cursor: pointer; transition: all 0.2s; }
-                    .upload-dropzone:hover, .upload-dropzone.drag-over { border-color: ${sourceColor}; background: ${sourceColor}08; }
+                    .divider { color: #94a3b8; font-size: 0.875rem; font-weight: 500; }
+                    .upload-dropzone { border: 2px dashed #a7f3d0; border-radius: 16px; padding: 2rem; cursor: pointer; transition: all 0.25s; background: #fafdfb; }
+                    .upload-dropzone:hover, .upload-dropzone.drag-over { border-color: #059669; background: #ecfdf5; }
                     .file-input { display: none; }
-                    .upload-dropzone label { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; cursor: pointer; color: #64748b; }
-                    .upload-dropzone svg { width: 32px; height: 32px; color: ${sourceColor}; }
-                    .loading-state { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 1.5rem; color: #64748b; }
-                    .spinner { width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top-color: ${sourceColor}; border-radius: 50%; animation: spin 1s linear infinite; }
+                    .upload-dropzone label { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; cursor: pointer; color: #64748b; font-weight: 500; }
+                    .upload-dropzone svg { width: 32px; height: 32px; color: #059669; }
+                    .loading-state { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 1.5rem; color: #064e3b; font-weight: 500; }
+                    .spinner { width: 24px; height: 24px; border: 3px solid #d1fae5; border-top-color: #059669; border-radius: 50%; animation: spin 1s linear infinite; }
                     @keyframes spin { to { transform: rotate(360deg); } }
-                    .error-message { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1rem; padding: 1rem; background: #fef2f2; color: #dc2626; border-radius: 8px; }
+                    .error-message { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1rem; padding: 1rem; background: #fef2f2; color: #dc2626; border-radius: 12px; border: 1px solid #fecaca; }
                     .error-message svg { width: 20px; height: 20px; }
                 `}</style>
             </div>
@@ -591,7 +591,7 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                     <span>{toast.message}</span>
                 </div>
             )}
-            
+
             {/* Toolbar */}
             <div className="toolbar">
                 <div className="toolbar-left">
@@ -820,20 +820,20 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                paginatedData.map((row, rowIdx) => {
-                                    const globalIdx = (currentPage - 1) * rowsPerPage + rowIdx;
-                                    return (
-                                    <tr key={rowIdx} className={selectedRows.has(globalIdx) ? 'selected' : ''}>
-                                        <td className="checkbox-col">
-                                            <input type="checkbox" checked={selectedRows.has(globalIdx)} onChange={() => toggleRowSelection(globalIdx)} />
-                                        </td>
-                                        <td className="row-num-col">{globalIdx + 1}</td>
-                                        {headers.map((header, colIdx) => (
-                                            <td key={colIdx}>{String(row[header] ?? '-')}</td>
-                                        ))}
-                                    </tr>
-                                    );
-                                })
+                                    paginatedData.map((row, rowIdx) => {
+                                        const globalIdx = (currentPage - 1) * rowsPerPage + rowIdx;
+                                        return (
+                                            <tr key={rowIdx} className={selectedRows.has(globalIdx) ? 'selected' : ''}>
+                                                <td className="checkbox-col">
+                                                    <input type="checkbox" checked={selectedRows.has(globalIdx)} onChange={() => toggleRowSelection(globalIdx)} />
+                                                </td>
+                                                <td className="row-num-col">{globalIdx + 1}</td>
+                                                {headers.map((header, colIdx) => (
+                                                    <td key={colIdx}>{String(row[header] ?? '-')}</td>
+                                                ))}
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
@@ -842,7 +842,7 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                     {/* Pagination */}
                     <div className="pagination">
                         <div className="pagination-info">
-                            {filteredData.length > 0 
+                            {filteredData.length > 0
                                 ? `Menampilkan ${(currentPage - 1) * rowsPerPage + 1} - ${Math.min(currentPage * rowsPerPage, filteredData.length)} dari ${filteredData.length}`
                                 : 'Tidak ada data yang cocok'}
                         </div>
@@ -864,40 +864,41 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
             )}
 
             <style jsx>{`
-                .workspace-container { padding: 1.5rem; min-height: calc(100vh - 80px); position: relative; }
+                .workspace-container { padding: 1.5rem; min-height: calc(100vh - 80px); position: relative; background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 40%); }
                 
-                .toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.25rem; border-radius: 10px; font-size: 0.9rem; font-weight: 500; z-index: 1000; animation: slideIn 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-                .toast.success { background: #dcfce7; color: #166534; }
-                .toast.error { background: #fef2f2; color: #dc2626; }
+                .toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.25rem; border-radius: 14px; font-size: 0.9rem; font-weight: 500; z-index: 1000; animation: slideIn 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+                .toast.success { background: #dcfce7; color: #166534; border: 1px solid #a7f3d0; }
+                .toast.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
                 .toast svg { width: 18px; height: 18px; }
                 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
                 
-                .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+                .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: #fff; padding: 1rem 1.25rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; }
                 .toolbar-left { display: flex; align-items: center; gap: 1rem; }
-                .toolbar-left h2 { font-size: 1.25rem; font-weight: 600; margin: 0; }
-                .data-count { font-size: 0.875rem; color: #64748b; background: #f1f5f9; padding: 0.25rem 0.75rem; border-radius: 20px; }
+                .toolbar-left h2 { font-size: 1.15rem; font-weight: 700; margin: 0; color: #064e3b; }
+                .data-count { font-size: 0.82rem; color: #065f46; background: #ecfdf5; padding: 0.3rem 0.85rem; border-radius: 20px; font-weight: 600; border: 1px solid #d1fae5; }
                 .toolbar-right { display: flex; align-items: center; gap: 0.5rem; }
-                .tool-btn { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s; }
-                .tool-btn:hover { background: #f8fafc; }
-                .tool-btn[data-active="true"] { background: ${sourceColor}; border-color: ${sourceColor}; color: white; }
+                .tool-btn { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; transition: all 0.2s; }
+                .tool-btn:hover { background: #f0fdf4; border-color: #a7f3d0; }
+                .tool-btn[data-active="true"] { background: linear-gradient(135deg, #064e3b, #059669); border-color: #059669; color: white; }
                 .tool-btn svg { width: 18px; height: 18px; }
                 .toolbar-divider { width: 1px; height: 24px; background: #e2e8f0; margin: 0 0.5rem; }
 
                 .search-bar { display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap; }
                 .search-input-wrapper { position: relative; flex: 1; min-width: 250px; }
                 .search-input-wrapper svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #94a3b8; }
-                .search-input-wrapper input { width: 100%; padding: 0.75rem 2.5rem 0.75rem 2.75rem; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; transition: all 0.2s; }
-                .search-input-wrapper input:focus { outline: none; border-color: ${sourceColor}; box-shadow: 0 0 0 3px ${sourceColor}20; }
-                .clear-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #e2e8f0; border: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 14px; line-height: 1; }
-                .filter-toggle { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: 1px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
-                .filter-toggle:hover { background: #f8fafc; }
-                .filter-toggle[data-active="true"] { background: ${sourceColor}10; border-color: ${sourceColor}; color: ${sourceColor}; }
+                .search-input-wrapper input { width: 100%; padding: 0.75rem 2.5rem 0.75rem 2.75rem; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; transition: all 0.2s; background: #fff; }
+                .search-input-wrapper input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
+                .clear-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #e2e8f0; border: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 14px; line-height: 1; transition: background 0.15s; }
+                .clear-btn:hover { background: #cbd5e1; }
+                .filter-toggle { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.1rem; border: 1.5px solid #e2e8f0; border-radius: 12px; background: white; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: all 0.2s; }
+                .filter-toggle:hover { background: #f0fdf4; border-color: #a7f3d0; }
+                .filter-toggle[data-active="true"] { background: #ecfdf5; border-color: #059669; color: #059669; }
                 .filter-toggle svg { width: 16px; height: 16px; }
                 
-                .export-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
-                .export-label { font-size: 0.875rem; color: #64748b; font-weight: 600; margin-right: 0.5rem; }
-                .export-btn-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.875rem; font-weight: 500; color: white; transition: all 0.2s; }
-                .export-btn-item svg { width: 16px; height: 16px; }
+                .export-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.25rem; flex-wrap: wrap; background: #fff; padding: 0.85rem 1.25rem; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; }
+                .export-label { font-size: 0.82rem; color: #64748b; font-weight: 700; margin-right: 0.25rem; }
+                .export-btn-item { display: flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.95rem; border: none; border-radius: 10px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: white; transition: all 0.2s; }
+                .export-btn-item svg { width: 15px; height: 15px; }
                 .export-btn-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
                 .export-btn-item.excel { background: #16a34a; }
                 .export-btn-item.excel:hover { background: #15803d; }
@@ -905,84 +906,90 @@ export default function DataWorkspace({ source }: DataWorkspaceProps) {
                 .export-btn-item.csv:hover { background: #1d4ed8; }
                 .export-btn-item.pdf { background: #dc2626; }
                 .export-btn-item.pdf:hover { background: #b91c1c; }
-                .export-btn-item.copy { background: #7c3aed; }
-                .export-btn-item.copy:hover { background: #6d28d9; }
+                .export-btn-item.copy { background: #475569; }
+                .export-btn-item.copy:hover { background: #334155; }
 
-                .stats-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-                .stat-item { display: flex; align-items: flex-start; gap: 0.875rem; background: white; padding: 1.25rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); flex: 1; min-width: 200px; }
-                .stat-item.primary { background: ${sourceColor}; color: white; }
-                .stat-icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 10px; flex-shrink: 0; }
-                .stat-item.primary .stat-icon { background: rgba(255,255,255,0.2); }
+                .stats-row { display: flex; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+                .stat-item { display: flex; align-items: flex-start; gap: 0.875rem; background: white; padding: 1.25rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); flex: 1; min-width: 200px; border: 1px solid #e2e8f0; }
+                .stat-item.primary { background: linear-gradient(135deg, #064e3b, #059669); color: white; border: none; box-shadow: 0 4px 16px rgba(5,150,105,0.2); }
+                .stat-icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 14px; flex-shrink: 0; }
+                .stat-item.primary .stat-icon { background: rgba(255,255,255,0.18); }
                 .stat-item.primary .stat-icon svg { color: white; }
-                .stat-icon.blue { background: #dbeafe; }
-                .stat-icon.blue svg { color: #2563eb; }
-                .stat-icon.green { background: #dcfce7; }
-                .stat-icon.green svg { color: #16a34a; }
+                .stat-icon.blue { background: #ecfdf5; }
+                .stat-icon.blue svg { color: #059669; }
+                .stat-icon.green { background: #fef3c7; }
+                .stat-icon.green svg { color: #d97706; }
                 .stat-icon svg { width: 24px; height: 24px; }
                 .stat-content { display: flex; flex-direction: column; justify-content: center; }
                 .stat-item.primary .stat-value { color: white; }
-                .stat-item.primary .stat-label { color: rgba(255,255,255,0.9); }
-                .stat-value { font-size: 1.75rem; font-weight: 700; color: #1e293b; line-height: 1.2; margin-bottom: 0.125rem; }
-                .stat-label { font-size: 0.8rem; color: #64748b; }
+                .stat-item.primary .stat-label { color: rgba(255,255,255,0.85); }
+                .stat-value { font-size: 1.75rem; font-weight: 800; color: #0f172a; line-height: 1.2; margin-bottom: 0.125rem; }
+                .stat-label { font-size: 0.8rem; color: #64748b; font-weight: 500; }
 
-                .filter-panel { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+                .filter-panel { background: white; border: 1px solid #d1fae5; border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; }
                 .filter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-                .filter-header h4 { margin: 0; font-size: 0.9rem; color: #374151; }
-                .filter-header button { padding: 0.375rem 0.75rem; background: ${sourceColor}; color: white; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+                .filter-header h4 { margin: 0; font-size: 0.95rem; color: #064e3b; font-weight: 700; }
+                .filter-header button { padding: 0.4rem 0.85rem; background: linear-gradient(135deg, #064e3b, #059669); color: white; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+                .filter-header button:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(5,150,105,0.25); }
                 .filter-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
-                .filter-row select, .filter-row input { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; }
+                .filter-row select, .filter-row input { padding: 0.5rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.85rem; transition: border-color 0.2s; }
+                .filter-row select:focus, .filter-row input:focus { border-color: #059669; outline: none; }
                 .filter-row select { min-width: 150px; }
                 .filter-row input { flex: 1; }
-                .remove-filter { width: 28px; height: 28px; border: none; background: #fee2e2; color: #dc2626; border-radius: 6px; cursor: pointer; font-size: 16px; }
+                .remove-filter { width: 30px; height: 30px; border: none; background: #fee2e2; color: #dc2626; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.15s; }
+                .remove-filter:hover { background: #fecaca; }
                 .no-filters { color: #94a3b8; font-size: 0.85rem; margin: 0; }
 
                 .summary-view { }
 
-                .status-summary-section { background: white; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-                .status-summary-section h4 { margin: 0 0 1rem; font-size: 0.95rem; color: #374151; }
+                .status-summary-section { background: white; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; }
+                .status-summary-section h4 { margin: 0 0 1rem; font-size: 1rem; color: #064e3b; font-weight: 700; }
                 .status-bars { display: flex; flex-direction: column; gap: 0.75rem; }
                 .status-bar-item { }
-                .status-info { display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
-                .status-name { font-size: 0.85rem; color: #374151; }
-                .status-count { font-size: 0.8rem; color: #64748b; }
-                .status-bar-track { height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
-                .status-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+                .status-info { display: flex; justify-content: space-between; margin-bottom: 0.35rem; }
+                .status-name { font-size: 0.85rem; color: #374151; font-weight: 500; }
+                .status-count { font-size: 0.8rem; color: #64748b; font-weight: 600; }
+                .status-bar-track { height: 10px; background: #f0fdf4; border-radius: 5px; overflow: hidden; }
+                .status-bar-fill { height: 100%; border-radius: 5px; transition: width 0.5s ease; }
 
-                .column-summary { background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-                .column-summary h4 { margin: 0 0 1rem; font-size: 0.95rem; color: #374151; }
+                .column-summary { background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; }
+                .column-summary h4 { margin: 0 0 1rem; font-size: 1rem; color: #064e3b; font-weight: 700; }
                 .column-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
-                .column-stat-card { background: #f8fafc; border-radius: 10px; padding: 1rem; }
-                .col-name { font-weight: 600; color: #1e293b; font-size: 0.9rem; margin-bottom: 0.25rem; }
-                .col-unique { font-size: 0.75rem; color: #64748b; margin-bottom: 0.75rem; }
-                .top-value { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 0.25rem 0; border-bottom: 1px solid #e2e8f0; }
+                .column-stat-card { background: #f8faf9; border-radius: 14px; padding: 1.1rem; border: 1px solid #e2e8f0; transition: all 0.2s; }
+                .column-stat-card:hover { border-color: #a7f3d0; box-shadow: 0 2px 10px rgba(5,150,105,0.08); }
+                .col-name { font-weight: 700; color: #064e3b; font-size: 0.9rem; margin-bottom: 0.3rem; }
+                .col-unique { font-size: 0.75rem; color: #64748b; margin-bottom: 0.75rem; font-weight: 500; }
+                .top-value { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 0.3rem 0; border-bottom: 1px solid #f0f5f3; }
                 .top-value:last-child { border-bottom: none; }
                 .tv-text { color: #475569; }
-                .tv-count { color: ${sourceColor}; font-weight: 600; }
+                .tv-count { color: #059669; font-weight: 700; }
 
-                .table-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 1rem; overflow-x: auto; }
+                .table-container { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 1rem; overflow-x: auto; border: 1px solid #e2e8f0; }
                 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-                th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
-                th { background: #f8fafc; font-weight: 600; color: #475569; position: sticky; top: 0; }
+                th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #f0f5f3; white-space: nowrap; }
+                th { background: #f0fdf4; font-weight: 700; color: #064e3b; position: sticky; top: 0; font-size: 0.78rem; letter-spacing: 0.3px; }
                 th.sortable { cursor: pointer; user-select: none; }
-                th.sortable:hover { background: #f1f5f9; }
-                .sort-indicator { margin-left: 0.5rem; color: ${sourceColor}; }
+                th.sortable:hover { background: #ecfdf5; }
+                .sort-indicator { margin-left: 0.5rem; color: #059669; }
                 .checkbox-col { width: 40px; text-align: center; }
+                .checkbox-col input[type="checkbox"] { accent-color: #059669; }
                 .row-num-col { width: 50px; color: #94a3b8; font-size: 0.8rem; }
-                tr:hover td { background: #f8fafc; }
-                tr.selected td { background: ${sourceColor}10; }
+                tr:hover td { background: #f0fdf4; }
+                tr.selected td { background: #ecfdf5; }
                 .empty-state { text-align: center; padding: 3rem 1rem !important; }
                 .empty-content { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; color: #94a3b8; }
                 .empty-content svg { width: 48px; height: 48px; opacity: 0.5; }
                 td { max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
 
-                .pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
-                .pagination-info { font-size: 0.85rem; color: #64748b; }
+                .pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; background: #fff; padding: 0.85rem 1.25rem; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; }
+                .pagination-info { font-size: 0.85rem; color: #64748b; font-weight: 500; }
                 .pagination-controls { display: flex; align-items: center; gap: 0.5rem; }
-                .pagination-controls select { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; }
-                .pagination-controls button { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer; font-size: 0.85rem; }
-                .pagination-controls button:hover:not(:disabled) { background: #f8fafc; }
-                .pagination-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
-                .pagination-controls span { font-size: 0.85rem; color: #64748b; padding: 0 0.5rem; }
+                .pagination-controls select { padding: 0.5rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.85rem; }
+                .pagination-controls select:focus { border-color: #059669; outline: none; }
+                .pagination-controls button { padding: 0.5rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.15s; }
+                .pagination-controls button:hover:not(:disabled) { background: #f0fdf4; border-color: #a7f3d0; color: #059669; }
+                .pagination-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+                .pagination-controls span { font-size: 0.85rem; color: #064e3b; padding: 0 0.5rem; font-weight: 600; }
 
                 @media (max-width: 768px) {
                     .toolbar { flex-direction: column; align-items: flex-start; gap: 1rem; }

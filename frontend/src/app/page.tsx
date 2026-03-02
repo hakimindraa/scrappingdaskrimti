@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import DashboardTab from '@/components/DashboardTab';
+import HomeTab from '@/components/HomeTab';
 import SipedeScraperTab from '@/components/SipedeScraperTab';
 import SppScraperTab from '@/components/SppScraperTab';
 import InsightTab from '@/components/InsightTab';
 import DataWorkspace from '@/components/DataWorkspace';
 
-type TabType = 'dashboard' | 'sipede' | 'spp' | 'insight' | 'workspace-sipede' | 'workspace-spdp';
+type TabType = 'home' | 'sipede' | 'spp' | 'insight' | 'workspace-sipede' | 'workspace-spdp';
 
 export default function HomePage() {
-    const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+    const [activeTab, setActiveTab] = useState<TabType>('home');
     const [scrappingMenuOpen, setScrappingMenuOpen] = useState(false);
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
     const scrappingDropdownRef = useRef<HTMLDivElement>(null);
@@ -62,16 +62,14 @@ export default function HomePage() {
                     {/* Tab Switcher */}
                     <div className="tab-switcher">
                         <button
-                            className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('dashboard')}
+                            className={`tab-btn ${activeTab === 'home' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('home')}
                         >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect x="3" y="3" width="7" height="7" />
-                                <rect x="14" y="3" width="7" height="7" />
-                                <rect x="14" y="14" width="7" height="7" />
-                                <rect x="3" y="14" width="7" height="7" />
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                <polyline points="9 22 9 12 15 12 15 22" />
                             </svg>
-                            Dashboard
+                            Home
                         </button>
 
                         {/* Scrapping Dropdown Menu */}
@@ -184,7 +182,7 @@ export default function HomePage() {
 
             {/* Tab Content */}
             <main className="tab-content">
-                {activeTab === 'dashboard' && <DashboardTab />}
+                {activeTab === 'home' && <HomeTab onNavigate={(tab) => setActiveTab(tab as TabType)} />}
                 {activeTab === 'sipede' && <SipedeScraperTab />}
                 {activeTab === 'spp' && <SppScraperTab />}
                 {activeTab === 'insight' && <InsightTab />}

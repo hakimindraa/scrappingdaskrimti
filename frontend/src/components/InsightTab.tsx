@@ -71,7 +71,7 @@ export default function InsightTab() {
     const [checkedJenisGroups, setCheckedJenisGroups] = useState<Set<string>>(new Set(JENIS_KATEGORI_LIST));
     const [showJenisUnmappedOnly, setShowJenisUnmappedOnly] = useState(false);
     const [assignJenis, setAssignJenis] = useState<JenisEntry | null>(null);
-    const [uploadInfo, setUploadInfo] = useState<{totalRowsMasuk?:number, jenisCount?:number, jenisMatched?:number, jenisUnmatched?:number, asalCount?:number, asalMatched?:number, asalUnmatched?:number, totalRowsKeluar?:number, keluarJenisCount?:number, keluarJenisMatched?:number, keluarJenisUnmatched?:number} | null>(null);
+    const [uploadInfo, setUploadInfo] = useState<{ totalRowsMasuk?: number, jenisCount?: number, jenisMatched?: number, jenisUnmatched?: number, asalCount?: number, asalMatched?: number, asalUnmatched?: number, totalRowsKeluar?: number, keluarJenisCount?: number, keluarJenisMatched?: number, keluarJenisUnmatched?: number } | null>(null);
     const jenisChartRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const fileInputRef2 = useRef<HTMLInputElement>(null);
@@ -493,20 +493,32 @@ export default function InsightTab() {
             {/* ===== PENGELOMPOKAN SECTION ===== */}
             <div className="pg-section">
                 <div className="pg-header">
-                    <h2 className="pg-title">PENGELOMPOKAN DATA SURAT</h2>
+                    <div className="pg-header-left">
+                        <h2 className="pg-title">Pengelompokan Data Surat</h2>
+                        <p className="pg-subtitle">Upload file Excel, lalu kelompokkan jenis dan asal surat</p>
+                    </div>
                     <div className="pg-header-right">
                         <label className="pg-upload-btn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                            Upload Surat Masuk
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12l7-7 7 7" /></svg>
+                            📥 Surat Masuk (.xlsx)
                             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUpload} />
                         </label>
                         <label className="pg-upload-btn pg-upload-btn-keluar">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                            Upload Surat Keluar
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19V5M5 12l7 7 7-7" /></svg>
+                            📤 Surat Keluar (.xlsx)
                             <input ref={fileInputRefKeluar} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUploadKeluar} />
                         </label>
                     </div>
                 </div>
+
+                {/* Step Guide for new users */}
+                {!hasUploadedJenis && !hasUploadedAsal && !hasUploadedKeluar && (
+                    <div className="pg-guide">
+                        <div className="pg-guide-step"><span className="pg-step-num">1</span><span>Upload file Excel surat masuk dan/atau keluar</span></div>
+                        <div className="pg-guide-step"><span className="pg-step-num">2</span><span>Kelompokkan jenis & asal surat di tab masing-masing</span></div>
+                        <div className="pg-guide-step"><span className="pg-step-num">3</span><span>Lihat hasil grafik di Dashboard SIPEDE di bawah</span></div>
+                    </div>
+                )}
 
                 {/* Upload Success Notification */}
                 {uploadInfo && (
@@ -1017,13 +1029,28 @@ export default function InsightTab() {
                 :global(.hi-icon) { width: 1rem; height: 1rem; display: inline-block; vertical-align: -0.15em; flex-shrink: 0; }
                 :global(.hi-icon-sm) { width: 0.8rem; height: 0.8rem; display: inline-block; vertical-align: -0.1em; flex-shrink: 0; }
                 :global(.hi-icon-lg) { width: 1.4rem; height: 1.4rem; display: inline-block; vertical-align: -0.2em; flex-shrink: 0; }
-                :global(.pg-empty-state-icon) { width: 3rem; height: 3rem; color: #c4b5fd; margin-bottom: 0.5rem; }
+                :global(.pg-empty-state-icon) { width: 3rem; height: 3rem; color: #6ee7b7; margin-bottom: 0.5rem; }
                 :global(.pg-search-icon) { position: absolute; left: 0.65rem; width: 1rem; height: 1rem; color: #94a3b8; pointer-events: none; }
 
-                .insight-wrapper { min-height: calc(100vh - 80px); background: #f1f0f6; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
-                .download-bar { display: flex; justify-content: flex-end; padding: 0.75rem 1.5rem 0; }
-                .insight-page {
-                    padding: 1.5rem;
+                .insight-wrapper { min-height: calc(100vh - 80px); background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 40%); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; padding: 1.5rem; }
+                .download-bar { display: flex; justify-content: flex-end; padding: 0 0 0.75rem; }
+                .insight-page { padding: 1.5rem; }
+
+                /* ===== Step Guide ===== */
+                .pg-guide {
+                    display: flex; gap: 1rem; padding: 1rem 1.5rem;
+                    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+                    border-bottom: 1px solid #d1fae5;
+                }
+                .pg-guide-step {
+                    display: flex; align-items: center; gap: 0.6rem;
+                    font-size: 0.82rem; color: #065f46; font-weight: 500; flex: 1;
+                }
+                .pg-step-num {
+                    width: 26px; height: 26px; border-radius: 50%;
+                    background: linear-gradient(135deg, #064e3b, #059669);
+                    color: #fff; font-size: 0.72rem; font-weight: 800;
+                    display: grid; place-items: center; flex-shrink: 0;
                 }
 
                 /* ===== Header ===== */
@@ -1038,15 +1065,15 @@ export default function InsightTab() {
                 .download-btn {
                     display: flex; align-items: center; gap: 0.5rem;
                     padding: 0.5rem 1.1rem;
-                    background: linear-gradient(135deg, #7c3aed, #c026d3);
+                    background: linear-gradient(135deg, #064e3b, #059669);
                     color: #fff;
-                    border: none; border-radius: 8px;
+                    border: none; border-radius: 10px;
                     font-size: 0.8rem; font-weight: 700;
                     cursor: pointer;
                     transition: all 0.2s ease;
-                    box-shadow: 0 2px 8px rgba(124,58,237,0.3);
+                    box-shadow: 0 2px 8px rgba(5,150,105,0.25);
                 }
-                .download-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(124,58,237,0.4); }
+                .download-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(5,150,105,0.35); }
                 .download-btn:active { transform: translateY(0); }
                 .download-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
                 .download-btn svg { width: 16px; height: 16px; }
@@ -1222,27 +1249,34 @@ export default function InsightTab() {
                 /* ===== Pengelompokan Section ===== */
                 .pg-section {
                     background: #ffffff;
-                    border-radius: 16px;
-                    box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+                    border-radius: 20px;
+                    box-shadow: 0 4px 24px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.03);
                     margin-bottom: 1.5rem;
                     overflow: hidden;
-                    border: 1px solid #e8e5f0;
+                    border: 1px solid #e2e8f0;
                 }
                 .pg-header {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                     padding: 1.25rem 1.75rem;
-                    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+                    background: linear-gradient(135deg, #042f2e 0%, #064e3b 50%, #065f46 100%);
                     flex-wrap: wrap;
                     gap: 0.75rem;
                 }
+                .pg-header-left { display: flex; flex-direction: column; gap: 0.2rem; }
                 .pg-title {
                     margin: 0;
                     font-size: 1.15rem;
                     font-weight: 800;
                     color: #fff;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 0.3px;
+                }
+                .pg-subtitle {
+                    margin: 0;
+                    font-size: 0.78rem;
+                    color: rgba(255,255,255,0.5);
+                    font-weight: 400;
                 }
                 .pg-header-right {
                     display: flex;
@@ -1255,29 +1289,29 @@ export default function InsightTab() {
                     align-items: center;
                     gap: 0.75rem;
                     padding: 0.75rem 1.75rem;
-                    background: #faf9fd;
-                    border-bottom: 1px solid #e8e5f0;
+                    background: #f0fdf4;
+                    border-bottom: 1px solid #d1fae5;
                 }
                 .pg-month-label {
                     font-size: 0.85rem;
                     font-weight: 700;
-                    color: #1e1b4b;
+                    color: #064e3b;
                 }
                 .pg-month-select {
                     padding: 0.45rem 0.75rem;
-                    border: 1.5px solid #e8e5f0;
-                    border-radius: 8px;
+                    border: 1.5px solid #d1fae5;
+                    border-radius: 10px;
                     font-size: 0.85rem;
                     font-weight: 600;
-                    color: #1e1b4b;
+                    color: #064e3b;
                     background: #fff;
                     cursor: pointer;
                     outline: none;
                     transition: border-color 0.2s;
                 }
                 .pg-month-select:focus {
-                    border-color: #7c3aed;
-                    box-shadow: 0 0 0 3px rgba(124,58,237,0.08);
+                    border-color: #059669;
+                    box-shadow: 0 0 0 3px rgba(5,150,105,0.08);
                 }
                 .pg-month-dash {
                     font-size: 1rem;
@@ -1289,27 +1323,28 @@ export default function InsightTab() {
                     align-items: center;
                     gap: 0.5rem;
                     padding: 0.55rem 1.1rem;
-                    background: rgba(255,255,255,0.15);
+                    background: rgba(255,255,255,0.12);
                     backdrop-filter: blur(8px);
                     color: #fff;
-                    border-radius: 8px;
-                    font-size: 0.85rem;
+                    border-radius: 12px;
+                    font-size: 0.82rem;
                     font-weight: 600;
                     cursor: pointer;
-                    transition: all 0.2s;
-                    border: 1px solid rgba(255,255,255,0.2);
+                    transition: all 0.25s;
+                    border: 1px solid rgba(255,255,255,0.18);
                 }
                 .pg-upload-btn:hover {
-                    background: rgba(255,255,255,0.25);
-                    transform: translateY(-1px);
+                    background: rgba(255,255,255,0.22);
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
                 }
                 .pg-upload-btn svg { width: 16px; height: 16px; }
                 .pg-upload-btn-keluar {
-                    background: rgba(192,38,211,0.35);
-                    border-color: rgba(192,38,211,0.4);
+                    background: rgba(16,185,129,0.25);
+                    border-color: rgba(16,185,129,0.35);
                 }
                 .pg-upload-btn-keluar:hover {
-                    background: rgba(192,38,211,0.5);
+                    background: rgba(16,185,129,0.4);
                 }
                 .pg-td-dash {
                     color: #cbd5e1;
@@ -1328,8 +1363,8 @@ export default function InsightTab() {
                 /* Tab Bar */
                 .pg-tab-bar {
                     display: flex;
-                    background: #f8f7fc;
-                    border-bottom: 2px solid #e8e5f0;
+                    background: #f8faf9;
+                    border-bottom: 2px solid #e2e8f0;
                 }
                 .pg-tab {
                     flex: 1;
@@ -1347,8 +1382,8 @@ export default function InsightTab() {
                     cursor: pointer;
                     transition: all 0.2s;
                 }
-                .pg-tab:hover { color: #7c3aed; background: #f0ecf9; }
-                .pg-tab-active { color: #312e81; border-bottom-color: #7c3aed; background: #fff; }
+                .pg-tab:hover { color: #059669; background: #f0fdf4; }
+                .pg-tab-active { color: #064e3b; border-bottom-color: #059669; background: #fff; }
                 .pg-tab-content {
                     display: flex;
                     flex-direction: column;
@@ -1360,8 +1395,8 @@ export default function InsightTab() {
                     padding: 0.75rem 1.25rem;
                     font-size: 0.82rem;
                     color: #64748b;
-                    border-bottom: 1px solid #f0eef5;
-                    background: #fdfcff;
+                    border-bottom: 1px solid #f0f5f3;
+                    background: #fafdfb;
                     font-weight: 600;
                 }
                 .pg-filter-toggle {
@@ -1369,20 +1404,20 @@ export default function InsightTab() {
                     align-items: center;
                     gap: 0.4rem;
                     padding: 0.45rem 0.9rem;
-                    background: #f0ecf9;
-                    border: 1px solid #e8e5f0;
-                    border-radius: 8px;
+                    background: #ecfdf5;
+                    border: 1px solid #d1fae5;
+                    border-radius: 10px;
                     font-size: 0.8rem;
                     font-weight: 600;
-                    color: #7c3aed;
+                    color: #059669;
                     cursor: pointer;
                     transition: all 0.15s;
                 }
-                .pg-filter-toggle:hover { background: #e8e3f6; }
+                .pg-filter-toggle:hover { background: #d1fae5; }
                 .pg-filter-panel {
                     padding: 0.75rem 1.25rem;
-                    background: #f8f7fc;
-                    border-bottom: 1px solid #e8e5f0;
+                    background: #f0fdf4;
+                    border-bottom: 1px solid #d1fae5;
                 }
                 .pg-filter-grid {
                     display: grid;
@@ -1394,14 +1429,14 @@ export default function InsightTab() {
                     align-items: center;
                     gap: 0.5rem;
                     padding: 0.35rem 0.6rem;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     font-size: 0.82rem;
                     cursor: pointer;
                     transition: background 0.15s;
                 }
-                .pg-filter-chip:hover { background: #f0ecf9; }
+                .pg-filter-chip:hover { background: #d1fae5; }
                 .pg-filter-chip input[type="checkbox"] {
-                    accent-color: #7c3aed;
+                    accent-color: #059669;
                     width: 16px;
                     height: 16px;
                     cursor: pointer;
@@ -1411,8 +1446,8 @@ export default function InsightTab() {
                     align-items: center;
                     gap: 1.5rem;
                     padding: 0.75rem 1.25rem;
-                    background: #faf9fd;
-                    border-top: 2px solid #e8e5f0;
+                    background: #f8faf9;
+                    border-top: 2px solid #e2e8f0;
                     flex-wrap: wrap;
                 }
                 .pg-footer-stats {
@@ -1438,11 +1473,11 @@ export default function InsightTab() {
                     padding: 0.4rem 0.75rem;
                     background: #fef9e7;
                     border: 1px solid #fde68a;
-                    border-radius: 8px;
+                    border-radius: 10px;
                     cursor: pointer;
                 }
                 .pg-footer-toggle input[type="checkbox"] {
-                    accent-color: #7c3aed;
+                    accent-color: #059669;
                     width: 15px;
                     height: 15px;
                     cursor: pointer;
@@ -1450,10 +1485,10 @@ export default function InsightTab() {
                 .pg-create-btn-sm {
                     margin-left: auto;
                     padding: 0.5rem 1rem;
-                    background: linear-gradient(135deg, #7c3aed, #a855f7);
+                    background: linear-gradient(135deg, #064e3b, #059669);
                     color: #fff;
                     border: none;
-                    border-radius: 8px;
+                    border-radius: 10px;
                     font-size: 0.8rem;
                     font-weight: 700;
                     cursor: pointer;
@@ -1461,16 +1496,16 @@ export default function InsightTab() {
                     letter-spacing: 0.3px;
                 }
                 .pg-create-btn-sm:hover {
-                    transform: translateY(-1px);
-                    box-shadow: 0 4px 14px rgba(124,58,237,0.3);
-                    background: linear-gradient(135deg, #6d28d9, #9333ea);
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 14px rgba(5,150,105,0.3);
+                    background: linear-gradient(135deg, #042f2e, #047857);
                 }
                 .pg-badge-sm {
                     display: inline-flex;
                     align-items: center;
                     gap: 0.25rem;
                     padding: 0.2rem 0.55rem;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     font-size: 0.7rem;
                     font-weight: 700;
                 }
@@ -1478,12 +1513,12 @@ export default function InsightTab() {
                 .pg-badge-sm.red { background: #fee2e2; color: #991b1b; }
 
                 .pg-upload-btn-inline {
-                    background: linear-gradient(135deg, #7c3aed, #a855f7);
+                    background: linear-gradient(135deg, #064e3b, #059669);
                     border: none;
                     color: #fff;
                 }
                 .pg-upload-btn-inline:hover {
-                    background: linear-gradient(135deg, #6d28d9, #9333ea);
+                    background: linear-gradient(135deg, #042f2e, #047857);
                 }
 
 
@@ -1497,9 +1532,9 @@ export default function InsightTab() {
                     border-radius: 6px;
                     transition: background 0.15s;
                 }
-                .pg-check-row:hover { background: #f0ecf9; }
+                .pg-check-row:hover { background: #f0fdf4; }
                 .pg-check-row input[type="checkbox"] {
-                    accent-color: #7c3aed;
+                    accent-color: #059669;
                     width: 16px;
                     height: 16px;
                     cursor: pointer;
@@ -1553,8 +1588,8 @@ export default function InsightTab() {
                     font-size: 0.8rem;
                     color: #64748b;
                     font-weight: 600;
-                    border-bottom: 1px solid #f0eef5;
-                    background: #fdfcff;
+                    border-bottom: 1px solid #f0f5f3;
+                    background: #fafdfb;
                 }
                 .pg-table-scroll {
                     flex: 1;
@@ -1563,24 +1598,24 @@ export default function InsightTab() {
                 }
                 .pg-table-scroll::-webkit-scrollbar { width: 6px; }
                 .pg-table-scroll::-webkit-scrollbar-track { background: transparent; }
-                .pg-table-scroll::-webkit-scrollbar-thumb { background: #d4d0e8; border-radius: 3px; }
+                .pg-table-scroll::-webkit-scrollbar-thumb { background: #a7f3d0; border-radius: 3px; }
                 .pg-table { width: 100%; border-collapse: collapse; }
                 .pg-table thead { position: sticky; top: 0; z-index: 1; }
                 .pg-table th {
-                    background: #f8f7fc;
+                    background: #f0fdf4;
                     padding: 0.7rem 1rem;
                     font-size: 0.75rem;
                     font-weight: 700;
-                    color: #7c3aed;
+                    color: #059669;
                     text-align: left;
-                    border-bottom: 2px solid #e8e5f0;
+                    border-bottom: 2px solid #d1fae5;
                     text-transform: uppercase;
                     letter-spacing: 0.8px;
                 }
                 .pg-table tbody tr { transition: background 0.1s; }
-                .pg-table tbody tr:hover { background: #f8f7fc; }
-                .pg-table tbody tr:nth-child(even) { background: #fdfcff; }
-                .pg-table tbody tr:nth-child(even):hover { background: #f5f3fb; }
+                .pg-table tbody tr:hover { background: #f0fdf4; }
+                .pg-table tbody tr:nth-child(even) { background: #fafdfb; }
+                .pg-table tbody tr:nth-child(even):hover { background: #ecfdf5; }
                 .pg-table td {
                     padding: 0.6rem 1rem;
                     font-size: 0.82rem;
@@ -1598,7 +1633,7 @@ export default function InsightTab() {
                     text-align: center;
                     font-weight: 700;
                     width: 80px;
-                    color: #4338ca;
+                    color: #064e3b;
                 }
                 .pg-td-group { min-width: 200px; }
                 .pg-tag {
@@ -1694,21 +1729,21 @@ export default function InsightTab() {
                     width: 100%;
                     text-align: left;
                     padding: 0.65rem 1rem;
-                    background: #faf9fd;
-                    border: 1px solid #e8e5f0;
-                    border-radius: 10px;
+                    background: #f8faf9;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 12px;
                     font-size: 0.85rem;
                     font-weight: 600;
-                    color: #1e1b4b;
+                    color: #0f172a;
                     cursor: pointer;
-                    transition: all 0.15s;
+                    transition: all 0.2s;
                 }
                 .pg-modal-option:hover {
-                    background: linear-gradient(135deg, #7c3aed, #a855f7);
+                    background: linear-gradient(135deg, #064e3b, #059669);
                     color: #fff;
-                    border-color: #7c3aed;
+                    border-color: #059669;
                     transform: translateX(4px);
-                    box-shadow: 0 3px 12px rgba(124,58,237,0.2);
+                    box-shadow: 0 3px 12px rgba(5,150,105,0.2);
                 }
                 .pg-modal-label {
                     display: block;
@@ -1730,8 +1765,8 @@ export default function InsightTab() {
                     background: #faf9fd;
                 }
                 .pg-modal-input:focus {
-                    border-color: #7c3aed;
-                    box-shadow: 0 0 0 4px rgba(124,58,237,0.08);
+                    border-color: #059669;
+                    box-shadow: 0 0 0 4px rgba(5,150,105,0.08);
                     background: #fff;
                 }
                 .pg-modal-input-search {
@@ -1777,16 +1812,16 @@ export default function InsightTab() {
                 .pg-btn-cancel:hover { background: #e2e1ec; }
                 .pg-btn-save {
                     padding: 0.55rem 1.1rem;
-                    background: linear-gradient(135deg, #7c3aed, #a855f7);
+                    background: linear-gradient(135deg, #064e3b, #059669);
                     color: #fff;
                     border: none;
-                    border-radius: 8px;
+                    border-radius: 10px;
                     font-size: 0.8rem;
                     font-weight: 700;
                     cursor: pointer;
                     transition: all 0.2s;
                 }
-                .pg-btn-save:hover { box-shadow: 0 4px 14px rgba(124,58,237,0.3); transform: translateY(-1px); }
+                .pg-btn-save:hover { box-shadow: 0 4px 14px rgba(5,150,105,0.3); transform: translateY(-1px); }
                 .pg-btn-save:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
                 .pg-empty { text-align: center; color: #94a3b8; font-size: 0.9rem; padding: 1.5rem; }
                 .chart-empty {
@@ -1838,10 +1873,10 @@ export default function InsightTab() {
                 }
                 .upload-notif-btn {
                     padding: 0.5rem 1rem;
-                    background: linear-gradient(135deg, #7c3aed, #c026d3);
+                    background: linear-gradient(135deg, #064e3b, #059669);
                     color: #fff;
                     border: none;
-                    border-radius: 8px;
+                    border-radius: 10px;
                     font-size: 0.8rem;
                     font-weight: 700;
                     cursor: pointer;
@@ -1850,7 +1885,7 @@ export default function InsightTab() {
                 }
                 .upload-notif-btn:hover {
                     transform: translateY(-1px);
-                    box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+                    box-shadow: 0 4px 14px rgba(5,150,105,0.3);
                 }
                 .upload-notif-actions {
                     display: flex;
