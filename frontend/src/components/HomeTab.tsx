@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as sipedeApi from '@/lib/sipede-api';
 import * as sppApi from '@/lib/spp-api';
+import * as dastiApi from '@/lib/dasti-api';
 
 interface SourceStats {
     name: string;
@@ -55,9 +56,10 @@ export default function HomeTab({ onNavigate }: HomeTabProps) {
         setIsLoading(true);
         try {
             const srcArray: SourceStats[] = [];
-            const [sipedeServer, sppServer] = await Promise.all([
+            const [sipedeServer, sppServer, dastiServer] = await Promise.all([
                 checkServerStatus('SIPEDE', process.env.NEXT_PUBLIC_SIPEDE_API_URL || 'http://localhost:5000'),
-                checkServerStatus('SPDP', process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001')
+                checkServerStatus('SPDP', process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001'),
+                checkServerStatus('DASTI', process.env.NEXT_PUBLIC_DASTI_API_URL || 'http://localhost:5002')
             ]);
 
             // SIPEDE
@@ -92,8 +94,22 @@ export default function HomeTab({ onNavigate }: HomeTabProps) {
                 srcArray.push({ name: 'SPDP', dataCount: 0, pagesScraped: 0, totalPages: 0, browserOpen: false, isRunning: false, isLoggedIn: false, elapsedTime: 0, error: 'Connection failed', lastScrapedAt: null });
             }
 
+            // DASTI
+            try {
+                if (dastiServer.isOnline) {
+                    const status = await dastiApi.getStatus();
+                    if (status.success) {
+                        srcArray.push({ name: 'DASTI', dataCount: status.status.dataCount || 0, pagesScraped: status.status.pagesScraped || 0, totalPages: status.status.tableInfo?.pagination?.totalPages || 0, browserOpen: status.status.browserOpen || false, isRunning: status.status.isRunning || false, isLoggedIn: status.status.isLoggedIn || false, elapsedTime: status.status.elapsedTime || 0, error: status.status.error || null, lastScrapedAt: null });
+                    }
+                } else {
+                    srcArray.push({ name: 'DASTI', dataCount: 0, pagesScraped: 0, totalPages: 0, browserOpen: false, isRunning: false, isLoggedIn: false, elapsedTime: 0, error: 'Server offline', lastScrapedAt: null });
+                }
+            } catch {
+                srcArray.push({ name: 'DASTI', dataCount: 0, pagesScraped: 0, totalPages: 0, browserOpen: false, isRunning: false, isLoggedIn: false, elapsedTime: 0, error: 'Connection failed', lastScrapedAt: null });
+            }
+
             setSources(srcArray);
-            setServers([sipedeServer, sppServer]);
+            setServers([sipedeServer, sppServer, dastiServer]);
             setLastRefresh(new Date());
         } catch (error) {
             console.error('Home fetch error:', error);
@@ -201,12 +217,19 @@ export default function HomeTab({ onNavigate }: HomeTabProps) {
                     {sources.map(source => {
                         const st = getSourceStatus(source);
                         const isSipede = source.name === 'SIPEDE';
+                        const isDasti = source.name === 'DASTI';
+                        const avatarClass = isSipede ? 'av-green' : isDasti ? 'av-orange' : 'av-blue';
+                        const navTarget = isSipede ? 'sipede' : isDasti ? 'dasti' : 'spp';
+                        const workspaceTarget = isSipede ? 'workspace-sipede' : 'workspace-spdp';
+                        
                         return (
                             <article key={source.name} className={`scraper-card ${source.isRunning ? 'active' : ''}`}>
                                 <div className="sc-top">
-                                    <div className={`sc-avatar ${isSipede ? 'av-green' : 'av-blue'}`}>
+                                    <div className={`sc-avatar ${avatarClass}`}>
                                         {isSipede ? (
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+                                        ) : isDasti ? (
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                                         ) : (
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg>
                                         )}
@@ -237,14 +260,16 @@ export default function HomeTab({ onNavigate }: HomeTabProps) {
                                 </div>
 
                                 <div className="sc-btns">
-                                    <button className="btn-primary" onClick={() => onNavigate?.(isSipede ? 'sipede' : 'spp')}>
+                                    <button className="btn-primary" onClick={() => onNavigate?.(navTarget)}>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                                         Buka Scraper
                                     </button>
-                                    <button className="btn-ghost" onClick={() => onNavigate?.(isSipede ? 'workspace-sipede' : 'workspace-spdp')}>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg>
-                                        Workspace
-                                    </button>
+                                    {!isDasti && (
+                                        <button className="btn-ghost" onClick={() => onNavigate?.(workspaceTarget)}>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg>
+                                            Workspace
+                                        </button>
+                                    )}
                                 </div>
                             </article>
                         );
@@ -295,6 +320,12 @@ export default function HomeTab({ onNavigate }: HomeTabProps) {
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg>
                                 </div>
                                 SPDP
+                            </button>
+                            <button className="nav-item" onClick={() => onNavigate?.('dasti')}>
+                                <div className="ni-icon or">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                                </div>
+                                DASTI
                             </button>
                             <button className="nav-item" onClick={() => onNavigate?.('workspace-sipede')}>
                                 <div className="ni-icon p">
@@ -588,8 +619,14 @@ export default function HomeTab({ onNavigate }: HomeTabProps) {
                 .ni-icon svg { width: 20px; height: 20px; color: #fff; }
                 .ni-icon.g { background: linear-gradient(135deg,#064e3b,#059669); }
                 .ni-icon.b { background: linear-gradient(135deg,#1e3a8a,#3b82f6); }
+                .ni-icon.or { background: linear-gradient(135deg,#c2410c,#ea580c); }
                 .ni-icon.p { background: linear-gradient(135deg,#6d28d9,#a855f7); }
                 .ni-icon.o { background: linear-gradient(135deg,#c2410c,#f97316); }
+
+                /* Avatar colors */
+                .av-green { background: linear-gradient(135deg,#064e3b,#059669); }
+                .av-blue  { background: linear-gradient(135deg,#1e3a8a,#3b82f6); }
+                .av-orange { background: linear-gradient(135deg,#c2410c,#ea580c); }
 
                 /* ═══ Responsive ═══ */
                 @media (max-width: 1024px) {

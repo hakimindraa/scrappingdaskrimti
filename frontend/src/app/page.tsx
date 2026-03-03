@@ -4,10 +4,11 @@ import { useState, useRef, useEffect } from 'react';
 import HomeTab from '@/components/HomeTab';
 import SipedeScraperTab from '@/components/SipedeScraperTab';
 import SppScraperTab from '@/components/SppScraperTab';
+import DastiScraperTab from '@/components/DastiScraperTab';
 import InsightTab from '@/components/InsightTab';
 import DataWorkspace from '@/components/DataWorkspace';
 
-type TabType = 'home' | 'sipede' | 'spp' | 'insight' | 'workspace-sipede' | 'workspace-spdp';
+type TabType = 'home' | 'sipede' | 'spp' | 'dasti' | 'insight' | 'workspace-sipede' | 'workspace-spdp';
 
 export default function HomePage() {
     const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -31,7 +32,7 @@ export default function HomePage() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleScrappingSelect = (tab: 'sipede' | 'spp') => {
+    const handleScrappingSelect = (tab: 'sipede' | 'spp' | 'dasti') => {
         setActiveTab(tab);
         setScrappingMenuOpen(false);
     };
@@ -75,7 +76,7 @@ export default function HomePage() {
                         {/* Scrapping Dropdown Menu */}
                         <div className="dropdown-container" ref={scrappingDropdownRef}>
                             <button
-                                className={`tab-btn ${(activeTab === 'sipede' || activeTab === 'spp') ? 'active' : ''}`}
+                                className={`tab-btn ${(activeTab === 'sipede' || activeTab === 'spp' || activeTab === 'dasti') ? 'active' : ''}`}
                                 onClick={() => setScrappingMenuOpen(!scrappingMenuOpen)}
                             >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -112,6 +113,16 @@ export default function HomePage() {
                                             <line x1="9" y1="21" x2="9" y2="9" />
                                         </svg>
                                         SPDP
+                                    </button>
+                                    <button
+                                        className={`dropdown-item ${activeTab === 'dasti' ? 'active' : ''}`}
+                                        onClick={() => handleScrappingSelect('dasti')}
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                        </svg>
+                                        DASTI
                                     </button>
                                 </div>
                             )}
@@ -185,6 +196,7 @@ export default function HomePage() {
                 {activeTab === 'home' && <HomeTab onNavigate={(tab) => setActiveTab(tab as TabType)} />}
                 {activeTab === 'sipede' && <SipedeScraperTab />}
                 {activeTab === 'spp' && <SppScraperTab />}
+                {activeTab === 'dasti' && <DastiScraperTab />}
                 {activeTab === 'insight' && <InsightTab />}
                 {activeTab === 'workspace-sipede' && <DataWorkspace source="sipede" />}
                 {activeTab === 'workspace-spdp' && <DataWorkspace source="spdp" />}

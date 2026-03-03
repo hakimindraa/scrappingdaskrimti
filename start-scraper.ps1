@@ -131,7 +131,7 @@ if ((Test-Path $activityJson) -or (Test-Path $scrapedJson)) {
 # SPP Backend dependencies (Python venv)
 $sppVenv = Join-Path $scriptDir "spp-scraper\venv"
 if (!(Test-Path $sppVenv)) {
-    Write-Color "  Creating Python virtual environment..." "Gray"
+    Write-Color "  Creating Python virtual environment for SPP..." "Gray"
     Set-Location (Join-Path $scriptDir "spp-scraper")
     python -m venv venv
     $pipPath = Join-Path $scriptDir "spp-scraper\venv\Scripts\pip.exe"
@@ -139,6 +139,18 @@ if (!(Test-Path $sppVenv)) {
     Set-Location $scriptDir
 }
 Write-Color "  OK SPP Backend dependencies" "Green"
+
+# DASTI Backend dependencies (Python venv)
+$dastiVenv = Join-Path $scriptDir "dasti-scraper\venv"
+if (!(Test-Path $dastiVenv)) {
+    Write-Color "  Creating Python virtual environment for DASTI..." "Gray"
+    Set-Location (Join-Path $scriptDir "dasti-scraper")
+    python -m venv venv
+    $pipPath = Join-Path $scriptDir "dasti-scraper\venv\Scripts\pip.exe"
+    & $pipPath install -r requirements.txt
+    Set-Location $scriptDir
+}
+Write-Color "  OK DASTI Backend dependencies" "Green"
 
 # Check & Create .env files
 Write-Color "  Checking .env files..." "Gray"
@@ -161,6 +173,16 @@ if (!(Test-Path $sppEnv)) {
     Write-Color "  OK SPP .env created" "Green"
 } else {
     Write-Color "  OK SPP .env exists" "Green"
+}
+
+# DASTI .env
+$dastiEnv = Join-Path $scriptDir "dasti-scraper\.env"
+if (!(Test-Path $dastiEnv)) {
+    Write-Color "  Creating DASTI .env file..." "Gray"
+    Copy-Item (Join-Path $scriptDir "dasti-scraper\.env.example") $dastiEnv
+    Write-Color "  OK DASTI .env created" "Green"
+} else {
+    Write-Color "  OK DASTI .env exists" "Green"
 }
 
 Write-Host ""
@@ -213,6 +235,7 @@ Write-Color "[4/5] Menjalankan services..." "Yellow"
 # Create temp batch files
 $sipedeBat = Join-Path $scriptDir "_run_sipede.bat"
 $sppBat = Join-Path $scriptDir "_run_spp.bat"
+$dastiBat = Join-Path $scriptDir "_run_dasti.bat"
 $frontendBat = Join-Path $scriptDir "_run_frontend.bat"
 
 # Get local IP address
@@ -242,6 +265,15 @@ call venv\Scripts\activate.bat
 uvicorn app.main:app --reload --host 0.0.0.0 --port 5001
 "@ | Out-File -FilePath $sppBat -Encoding ASCII
 
+# DASTI Backend batch
+@"
+@echo off
+title DASTI Backend - Port 5002
+cd /d "$scriptDir\dasti-scraper"
+call venv\Scripts\activate.bat
+uvicorn app.main:app --reload --host 0.0.0.0 --port 5002
+"@ | Out-File -FilePath $dastiBat -Encoding ASCII
+
 # Frontend batch - Production mode for network stability
 @"
 @echo off
@@ -263,6 +295,11 @@ Write-Color "  Starting SPP Backend (Port 5001)..." "Gray"
 Start-Process cmd -ArgumentList "/c", $sppBat
 Start-Sleep -Seconds 2
 Write-Color "  OK SPP Backend started" "Green"
+
+Write-Color "  Starting DASTI Backend (Port 5002)..." "Gray"
+Start-Process cmd -ArgumentList "/c", $dastiBat
+Start-Sleep -Seconds 2
+Write-Color "  OK DASTI Backend started" "Green"
 
 Write-Color "  Starting Frontend (Port 3000) - Production Mode..." "Gray"
 Start-Process cmd -ArgumentList "/c", $frontendBat
@@ -290,6 +327,7 @@ Write-Color "  Akses Lokal (laptop ini):" "Yellow"
 Write-Color "    Frontend:       http://localhost:3000" "White"
 Write-Color "    SIPEDE Backend: http://localhost:5000" "White"
 Write-Color "    SPP Backend:    http://localhost:5001" "White"
+Write-Color "    DASTI Backend:  http://localhost:5002" "White"
 if ($ollamaInstalled) {
     Write-Color "    Ollama Service: http://localhost:11434" "White"
 }
@@ -298,6 +336,7 @@ Write-Color "  Akses dari Laptop Lain (WiFi sama):" "Yellow"
 Write-Color "    Frontend:       http://${localIP}:3000" "Magenta"
 Write-Color "    SIPEDE Backend: http://${localIP}:5000" "Magenta"
 Write-Color "    SPP Backend:    http://${localIP}:5001" "Magenta"
+Write-Color "    DASTI Backend:  http://${localIP}:5002" "Magenta"
 if ($ollamaInstalled) {
     Write-Color "    Ollama Service: http://${localIP}:11434" "Magenta"
 }
@@ -348,6 +387,7 @@ if ($stopOllama -eq "Y" -or $stopOllama -eq "y") {
 # Remove temp batch files
 Remove-Item $sipedeBat -Force -ErrorAction SilentlyContinue
 Remove-Item $sppBat -Force -ErrorAction SilentlyContinue
+Remove-Item $dastiBat -Force -ErrorAction SilentlyContinue
 Remove-Item $frontendBat -Force -ErrorAction SilentlyContinue
 $ollamaBat = Join-Path $scriptDir "_run_ollama.bat"
 Remove-Item $ollamaBat -Force -ErrorAction SilentlyContinue
