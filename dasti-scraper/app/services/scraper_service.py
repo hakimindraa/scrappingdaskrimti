@@ -67,32 +67,82 @@ class DastiScraperService:
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--start-maximized")
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
+        chrome_options.add_argument("--remote-debugging-port=9222")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
+        
+        # Suppress Chrome warnings
+        chrome_options.add_experimental_option('prefs', {
+            'profile.default_content_setting_values.notifications': 2,
+            'credentials_enable_service': False,
+            'profile.password_manager_enabled': False
+        })
         
         # User agent rotation
         user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
         ]
         import random
         chrome_options.add_argument(f"user-agent={random.choice(user_agents)}")
         
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        
-        # Remove webdriver flag
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": """
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined
+        try:
+            # Try to install/update ChromeDriver with cache clearing
+            print("[Driver] Installing/updating ChromeDriver...")
+            driver_path = ChromeDriverManager().install()
+            print(f"[Driver] ChromeDriver path: {driver_path}")
+            
+            service = Service(driver_path)
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            
+            # Remove webdriver flag
+            driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+                "source": """
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    })
+                """
+            })
+            
+            print("[Driver] Chrome driver initialized successfully")
+            return driver
+            
+        except Exception as e:
+            print(f"[Driver] Error setting up ChromeDriver: {e}")
+            print("[Driver] Trying to clear cache and reinstall...")
+            
+            # Clear webdriver-manager cache
+            import shutil
+            import os
+            cache_path = os.path.join(os.path.expanduser("~"), ".wdm")
+            if os.path.exists(cache_path):
+                try:
+                    shutil.rmtree(cache_path)
+                    print("[Driver] Cache cleared")
+                except Exception as cache_err:
+                    print(f"[Driver] Could not clear cache: {cache_err}")
+            
+            # Try again with fresh install
+            try:
+                driver_path = ChromeDriverManager().install()
+                service = Service(driver_path)
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+                
+                driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+                    "source": """
+                        Object.defineProperty(navigator, 'webdriver', {
+                            get: () => undefined
+                        })
+                    """
                 })
-            """
-        })
-        
-        return driver
+                
+                print("[Driver] Chrome driver initialized successfully after cache clear")
+                return driver
+            except Exception as retry_err:
+                print(f"[Driver] Failed to initialize ChromeDriver after retry: {retry_err}")
+                raise Exception(f"ChromeDriver initialization failed. Please update Chrome browser or run: pip install --upgrade webdriver-manager selenium")
     
     def open_browser(self, url: str = None) -> Dict:
         """Open browser and navigate to URL"""

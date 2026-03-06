@@ -1,0 +1,6 @@
+{
+  "name": "year-override-feature",
+  "version": "1.0.0",
+  "description": "Fitur untuk mengubah/override tahun data Excel di Pengelompokan Surat",
+  "entryPoint": "requirements"
+}

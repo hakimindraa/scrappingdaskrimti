@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as sipedeApi from '@/lib/sipede-api';
 import * as sppApi from '@/lib/spp-api';
+import * as dastiApi from '@/lib/dasti-api';
 import {
     ClipboardDocumentListIcon,
     ChartBarIcon,
@@ -161,9 +162,10 @@ export default function DashboardTab() {
         setIsLoading(true);
         try {
             const sources: SourceStats[] = [];
-            const [sipedeServer, sppServer] = await Promise.all([
+            const [sipedeServer, sppServer, dastiServer] = await Promise.all([
                 checkServerStatus('SIPEDE', process.env.NEXT_PUBLIC_SIPEDE_API_URL || 'http://localhost:5000'),
-                checkServerStatus('SPDP', process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001')
+                checkServerStatus('SPDP', process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001'),
+                checkServerStatus('DASTI', process.env.NEXT_PUBLIC_DASTI_API_URL || 'http://localhost:5002')
             ]);
 
             // SIPEDE
@@ -283,11 +285,68 @@ export default function DashboardTab() {
                 });
             }
 
+            // DASTI
+            let dastiLastScraped: string | null = null;
+            try {
+                if (dastiServer.isOnline) {
+                    const status = await dastiApi.getStatus();
+                    if (status.success) {
+                        // Get last scraped time from status if available
+                        if (status.status.startTime && status.status.dataCount > 0) {
+                            dastiLastScraped = status.status.startTime;
+                        }
+                        
+                        const prevSource = data.sources.find(s => s.name === 'DASTI');
+
+                        if (prevSource) {
+                            if (!prevSource.isRunning && status.status.isRunning) {
+                                addLog('info', 'Scraping dimulai', 'DASTI');
+                            } else if (prevSource.isRunning && !status.status.isRunning && status.status.dataCount > 0) {
+                                addLog('success', `Scraping selesai - ${status.status.dataCount} data`, 'DASTI');
+                            }
+                        }
+
+                        sources.push({
+                            name: 'DASTI',
+                            icon: <ClipboardDocumentListIcon className="w-5 h-5" />,
+                            dataCount: status.status.dataCount || 0,
+                            pagesScraped: status.status.pagesScraped || 0,
+                            totalPages: status.status.tableInfo?.pagination?.totalPages || 0,
+                            browserOpen: status.status.browserOpen || false,
+                            isRunning: status.status.isRunning || false,
+                            isLoggedIn: status.status.isLoggedIn || false,
+                            elapsedTime: status.status.elapsedTime || 0,
+                            error: status.status.error || null,
+                            exportCsvUrl: dastiApi.getExportCsvUrl(),
+                            exportJsonUrl: dastiApi.getExportJsonUrl(),
+                            exportExcelUrl: dastiApi.getExportExcelUrl(),
+                            lastScrapedAt: dastiLastScraped
+                        });
+                    }
+                } else {
+                    sources.push({
+                        name: 'DASTI', icon: <ClipboardDocumentListIcon className="w-5 h-5" />, dataCount: 0, pagesScraped: 0, totalPages: 0,
+                        browserOpen: false, isRunning: false, isLoggedIn: false, elapsedTime: 0,
+                        error: 'Server offline', exportCsvUrl: dastiApi.getExportCsvUrl(),
+                        exportJsonUrl: dastiApi.getExportJsonUrl(), exportExcelUrl: dastiApi.getExportExcelUrl(),
+                        lastScrapedAt: null
+                    });
+                }
+            } catch {
+                sources.push({
+                    name: 'DASTI', icon: <ClipboardDocumentListIcon className="w-5 h-5" />, dataCount: 0, pagesScraped: 0, totalPages: 0,
+                    browserOpen: false, isRunning: false, isLoggedIn: false, elapsedTime: 0,
+                    error: 'Connection failed', exportCsvUrl: dastiApi.getExportCsvUrl(),
+                    exportJsonUrl: dastiApi.getExportJsonUrl(), exportExcelUrl: dastiApi.getExportExcelUrl(),
+                    lastScrapedAt: null
+                });
+            }
+
             setData({
                 sources,
                 totalData: sources.reduce((sum, s) => sum + s.dataCount, 0),
                 activeScrapers: sources.filter(s => s.isRunning).length,
-                servers: [sipedeServer, sppServer]
+                servers: [sipedeServer, sppServer, dastiServer]
             });
             setLastRefresh(new Date());
         } catch (error) {

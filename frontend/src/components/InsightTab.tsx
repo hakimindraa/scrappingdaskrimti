@@ -52,6 +52,9 @@ export default function InsightTab() {
     const [rawRowsKeluar, setRawRowsKeluar] = useState<RawRowKeluar[]>([]);
     const [hasUploadedKeluar, setHasUploadedKeluar] = useState(false);
 
+    // --- Year Override State ---
+    const [tahunOverride, setTahunOverride] = useState<number | null>(null);
+
     // --- SIPEDE Manual Stats State ---
     const [sipedeStats, setSipedeStats] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -119,14 +122,18 @@ export default function InsightTab() {
     const fileInputRefKeluar = useRef<HTMLInputElement>(null);
     const asalChartRef = useRef<HTMLDivElement>(null);
 
-    // --- Filtered Rows (reactive to month filter) ---
+    // --- Filtered Rows (reactive to month filter + year override) ---
     const filteredRows = useMemo(() => {
-        return rawRows.filter(r => r.month >= bulanDari && r.month <= bulanSampai);
-    }, [rawRows, bulanDari, bulanSampai]);
+        return rawRows
+            .filter(r => r.month >= bulanDari && r.month <= bulanSampai)
+            .map(r => tahunOverride ? { ...r, year: tahunOverride } : r);
+    }, [rawRows, bulanDari, bulanSampai, tahunOverride]);
 
     const filteredRowsKeluar = useMemo(() => {
-        return rawRowsKeluar.filter(r => r.month >= bulanDari && r.month <= bulanSampai);
-    }, [rawRowsKeluar, bulanDari, bulanSampai]);
+        return rawRowsKeluar
+            .filter(r => r.month >= bulanDari && r.month <= bulanSampai)
+            .map(r => tahunOverride ? { ...r, year: tahunOverride } : r);
+    }, [rawRowsKeluar, bulanDari, bulanSampai, tahunOverride]);
 
     // --- Jenis Data (computed from filteredRows + filteredRowsKeluar) ---
     const jenisData = useMemo((): JenisEntry[] => {
@@ -240,6 +247,7 @@ export default function InsightTab() {
         if (!searchAsal) return list;
         return list.filter(d => d.asal.toLowerCase().includes(searchAsal.toLowerCase()));
     }, [asalData, searchAsal]);
+
     // --- Parse Date Helper ---
     const parseDate = (raw: unknown): { month: number; year: number } | null => {
         if (!raw) return null;
@@ -279,9 +287,15 @@ export default function InsightTab() {
             rows.forEach(row => {
                 const jenis = (row['Jenis Surat'] || '').toString().trim().toUpperCase();
                 const asal = (row['Asal'] || '').toString().trim().toUpperCase();
-                const d = parseDate(row['Tanggal']);
+                const tanggalRaw = row['Tanggal'];
+                const d = parseDate(tanggalRaw);
                 if (!d || d.month < 1 || d.month > 12) return;
-                parsed.push({ jenis, asal, month: d.month, year: d.year });
+                parsed.push({ 
+                    jenis, 
+                    asal, 
+                    month: d.month, 
+                    year: d.year
+                });
                 if (d.month < minMonth) minMonth = d.month;
                 if (d.month > maxMonth) maxMonth = d.month;
                 yearsFound.add(d.year);
@@ -323,6 +337,7 @@ export default function InsightTab() {
             // Reset overrides on new upload
             setJenisKategoriOverrides({});
             setAsalKelompokOverrides({});
+            setTahunOverride(null);
 
             setUploadInfo(prev => ({
                 ...prev,
@@ -595,6 +610,55 @@ export default function InsightTab() {
                     </div>
                 )}
 
+                {/* Year Override Section */}
+                {dataYear && (
+                    <div className="pg-year-override">
+                        <div className="pg-year-info">
+                            <span className="pg-year-icon">📅</span>
+                            <div className="pg-year-info-text">
+                                <span className="pg-year-info-label">Tahun Terdeteksi:</span>
+                                <span className="pg-year-info-value">
+                                    {dataYear.min === dataYear.max 
+                                        ? dataYear.min 
+                                        : `${dataYear.min} - ${dataYear.max}`}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div className="pg-year-control">
+                            <label className="pg-year-label">
+                                <span className="pg-year-label-icon">✏️</span>
+                                Override Tahun:
+                            </label>
+                            <select 
+                                className="pg-year-select"
+                                value={tahunOverride || ''}
+                                onChange={e => setTahunOverride(e.target.value ? Number(e.target.value) : null)}
+                            >
+                                <option value="">Gunakan Tahun Asli</option>
+                                {Array.from({ length: 11 }, (_, i) => 2020 + i).map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        {tahunOverride && (
+                            <button 
+                                className="pg-year-reset"
+                                onClick={() => setTahunOverride(null)}
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                                    <path d="M21 3v5h-5" />
+                                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                                    <path d="M3 21v-5h5" />
+                                </svg>
+                                Reset ke Tahun Asli
+                            </button>
+                        )}
+                    </div>
+                )}
+
                 {/* Month Filter Dropdown */}
                 {availableRange && (
                     <div className="pg-month-filter">
@@ -651,11 +715,6 @@ export default function InsightTab() {
                                 <DocumentTextIcon className="pg-empty-state-icon" />
                                 <h3>Belum ada data</h3>
                                 <p>Upload Excel untuk memulai pengelompokan jenis surat.</p>
-                                <label className="pg-upload-btn pg-upload-btn-lg pg-upload-btn-inline">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                                    Upload Excel
-                                    <input ref={fileInputRef2} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUpload} />
-                                </label>
                             </div>
                         ) : (
                             <>
@@ -980,9 +1039,10 @@ export default function InsightTab() {
                         <span className="period-badge">{availableRange ? MONTH_LABELS[bulanDari - 1].toUpperCase() : 'JAN'}</span>
                         <span className="period-sep">—</span>
                         <span className="period-badge">{availableRange ? MONTH_LABELS[bulanSampai - 1].toUpperCase() : 'SEP'}</span>
-                        <span className="period-year">
-                            <span className="year-top">{dataYear ? String(dataYear.min).slice(0, 2) : '20'}</span>
-                            <span className="year-bottom">{dataYear ? String(dataYear.min).slice(2) : '25'}</span>
+                        <span className="period-year-full">
+                            {tahunOverride 
+                                ? tahunOverride 
+                                : (dataYear ? dataYear.min : 2025)}
                         </span>
                     </div>
                 </div>
@@ -1254,61 +1314,94 @@ export default function InsightTab() {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 1.25rem;
+                    margin-bottom: 1.5rem;
+                    padding: 1.25rem 1.5rem;
+                    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+                    border-radius: 16px;
+                    box-shadow: 0 4px 20px rgba(30, 27, 75, 0.15);
                     flex-wrap: wrap;
-                    gap: 1rem;
+                    gap: 1.5rem;
+                    min-height: 80px;
                 }
                 .download-btn {
-                    display: flex; align-items: center; gap: 0.5rem;
-                    padding: 0.5rem 1.1rem;
-                    background: linear-gradient(135deg, #064e3b, #059669);
+                    display: flex; 
+                    align-items: center; 
+                    gap: 0.5rem;
+                    padding: 0.6rem 1.3rem;
+                    background: linear-gradient(135deg, #059669, #10b981);
                     color: #fff;
-                    border: none; border-radius: 10px;
-                    font-size: 0.8rem; font-weight: 700;
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 10px;
+                    font-size: 0.85rem; 
+                    font-weight: 700;
                     cursor: pointer;
                     transition: all 0.2s ease;
-                    box-shadow: 0 2px 8px rgba(5,150,105,0.25);
+                    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
                 }
-                .download-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(5,150,105,0.35); }
+                .download-btn:hover { 
+                    background: linear-gradient(135deg, #047857, #059669);
+                    transform: translateY(-1px); 
+                    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4); 
+                }
                 .download-btn:active { transform: translateY(0); }
-                .download-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-                .download-btn svg { width: 16px; height: 16px; }
+                .download-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+                .download-btn svg { width: 18px; height: 18px; }
+                
+                .dash-title {
+                    display: inline-block;
+                    vertical-align: middle;
+                }
                 .dash-title h1 {
                     margin: 0;
-                    font-size: 1.75rem;
-                    font-weight: 800;
-                    color: #1e1b4b;
-                    background: #1e1b4b;
+                    padding: 0;
+                    font-size: 2rem;
+                    font-weight: 900;
                     color: #fff;
-                    padding: 0.5rem 1.5rem;
-                    display: inline-block;
+                    letter-spacing: 2px;
+                    text-transform: uppercase;
+                    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                    line-height: 1.2;
+                    vertical-align: middle;
                 }
+                
                 .dash-period {
-                    display: flex;
+                    display: inline-flex;
                     align-items: center;
-                    gap: 0.5rem;
+                    gap: 0.75rem;
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 0.65rem 1rem;
+                    border-radius: 12px;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    vertical-align: middle;
                 }
                 .period-label {
-                    background: #7c3aed;
-                    color: #fff;
-                    padding: 0.35rem 0.9rem;
-                    border-radius: 6px;
-                    font-size: 0.8rem;
+                    color: rgba(255, 255, 255, 0.8);
+                    font-size: 0.75rem;
                     font-weight: 700;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 1.5px;
+                    text-transform: uppercase;
+                    line-height: 1.2;
+                    vertical-align: middle;
                 }
                 .period-badge {
-                    background: #c026d3;
+                    background: rgba(255, 255, 255, 0.2);
                     color: #fff;
-                    padding: 0.35rem 0.75rem;
-                    border-radius: 6px;
-                    font-size: 0.85rem;
-                    font-weight: 700;
+                    padding: 0.45rem 0.85rem;
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                    font-weight: 800;
+                    letter-spacing: 0.5px;
+                    border: 1px solid rgba(255, 255, 255, 0.25);
+                    line-height: 1.2;
+                    vertical-align: middle;
                 }
                 .period-sep {
-                    font-size: 1.1rem;
-                    color: #1e1b4b;
+                    font-size: 1.2rem;
+                    color: rgba(255, 255, 255, 0.6);
                     font-weight: 700;
+                    line-height: 1.2;
+                    vertical-align: middle;
                 }
                 .period-year {
                     display: flex;
@@ -1320,6 +1413,19 @@ export default function InsightTab() {
                     line-height: 1;
                 }
                 .year-top, .year-bottom { display: block; }
+                .period-year-full {
+                    display: inline-block;
+                    padding: 0.45rem 0.95rem;
+                    background: rgba(255, 255, 255, 0.25);
+                    color: #fff;
+                    font-size: 1.15rem;
+                    font-weight: 900;
+                    border-radius: 8px;
+                    letter-spacing: 1.5px;
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    line-height: 1.2;
+                    vertical-align: middle;
+                }
 
                 /* ===== Cards ===== */
                 .cards-row { display: flex; gap: 1rem; margin-bottom: 1rem; }
@@ -1563,6 +1669,113 @@ export default function InsightTab() {
                     color: #94a3b8;
                     font-weight: 600;
                 }
+                
+                /* ===== Year Override Section ===== */
+                .pg-year-override {
+                    display: flex;
+                    align-items: center;
+                    gap: 1.5rem;
+                    padding: 0.85rem 1.75rem;
+                    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+                    border-bottom: 1px solid #a7f3d0;
+                    flex-wrap: wrap;
+                }
+                .pg-year-info {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6rem;
+                }
+                .pg-year-icon {
+                    font-size: 1.3rem;
+                    line-height: 1;
+                }
+                .pg-year-info-text {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.1rem;
+                }
+                .pg-year-info-label {
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    color: #065f46;
+                    text-transform: uppercase;
+                    letter-spacing: 0.3px;
+                }
+                .pg-year-info-value {
+                    font-size: 1.1rem;
+                    font-weight: 800;
+                    color: #064e3b;
+                    letter-spacing: 0.5px;
+                }
+                .pg-year-control {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
+                .pg-year-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    font-size: 0.85rem;
+                    font-weight: 700;
+                    color: #064e3b;
+                }
+                .pg-year-label-icon {
+                    font-size: 1rem;
+                    line-height: 1;
+                }
+                .pg-year-select {
+                    padding: 0.5rem 0.85rem;
+                    border: 1.5px solid #a7f3d0;
+                    border-radius: 10px;
+                    font-size: 0.9rem;
+                    font-weight: 700;
+                    color: #064e3b;
+                    background: #fff;
+                    cursor: pointer;
+                    outline: none;
+                    transition: all 0.2s;
+                    min-width: 180px;
+                }
+                .pg-year-select:hover {
+                    border-color: #6ee7b7;
+                    background: #f0fdf4;
+                }
+                .pg-year-select:focus {
+                    border-color: #059669;
+                    box-shadow: 0 0 0 3px rgba(5,150,105,0.12);
+                    background: #fff;
+                }
+                .pg-year-reset {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    padding: 0.5rem 1rem;
+                    background: #fff;
+                    border: 1.5px solid #a7f3d0;
+                    border-radius: 10px;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    color: #059669;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    margin-left: auto;
+                }
+                .pg-year-reset svg {
+                    width: 16px;
+                    height: 16px;
+                }
+                .pg-year-reset:hover {
+                    background: linear-gradient(135deg, #064e3b, #059669);
+                    color: #fff;
+                    border-color: #059669;
+                    transform: translateY(-1px);
+                    box-shadow: 0 3px 12px rgba(5,150,105,0.25);
+                }
+                .pg-year-reset:active {
+                    transform: translateY(0);
+                }
+                
                 .pg-upload-btn {
                     display: flex;
                     align-items: center;
@@ -2279,6 +2492,18 @@ export default function InsightTab() {
                     .bottom-row { flex-direction: column; }
                     .pg-tab { font-size: 0.72rem; padding: 0.7rem 0.75rem; gap: 0.3rem; }
                     .pg-filter-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+                }
+                @media (max-width: 768px) {
+                    .pg-year-override {
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 1rem;
+                    }
+                    .pg-year-reset {
+                        margin-left: 0;
+                        width: 100%;
+                        justify-content: center;
+                    }
                 }
                 @media (max-width: 640px) {
                     .insight-page { padding: 0.75rem; }
