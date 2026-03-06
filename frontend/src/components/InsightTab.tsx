@@ -17,6 +17,12 @@ import {
     MagnifyingGlassIcon,
     CheckBadgeIcon,
     ArrowDownIcon,
+    CalendarIcon,
+    PencilIcon,
+    ArrowUpTrayIcon,
+    ArrowDownTrayIcon,
+    ChartPieIcon,
+    ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
 interface RawRow {
@@ -562,13 +568,13 @@ export default function InsightTab() {
                     </div>
                     <div className="pg-header-right">
                         <label className="pg-upload-btn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12l7-7 7 7" /></svg>
-                            📥 Surat Masuk (.xlsx)
+                            <ArrowUpTrayIcon className="hi-icon" />
+                            Surat Masuk (.xlsx)
                             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUpload} />
                         </label>
                         <label className="pg-upload-btn pg-upload-btn-keluar">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19V5M5 12l7 7 7-7" /></svg>
-                            📤 Surat Keluar (.xlsx)
+                            <ArrowDownTrayIcon className="hi-icon" />
+                            Surat Keluar (.xlsx)
                             <input ref={fileInputRefKeluar} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUploadKeluar} />
                         </label>
                     </div>
@@ -591,10 +597,10 @@ export default function InsightTab() {
                             <div className="upload-notif-text">
                                 <strong>Upload berhasil!</strong>
                                 {uploadInfo.totalRowsMasuk != null && (
-                                    <span>📥 Surat Masuk: {uploadInfo.totalRowsMasuk.toLocaleString()} baris &bull; {uploadInfo.jenisCount} jenis ({uploadInfo.jenisMatched} cocok, {uploadInfo.jenisUnmatched} belum) &bull; {uploadInfo.asalCount} asal ({uploadInfo.asalMatched} cocok, {uploadInfo.asalUnmatched} belum)</span>
+                                    <span><ArrowUpTrayIcon className="hi-icon-inline" /> Surat Masuk: {uploadInfo.totalRowsMasuk.toLocaleString()} baris &bull; {uploadInfo.jenisCount} jenis ({uploadInfo.jenisMatched} cocok, {uploadInfo.jenisUnmatched} belum) &bull; {uploadInfo.asalCount} asal ({uploadInfo.asalMatched} cocok, {uploadInfo.asalUnmatched} belum)</span>
                                 )}
                                 {uploadInfo.totalRowsKeluar != null && (
-                                    <span>📤 Surat Keluar: {uploadInfo.totalRowsKeluar.toLocaleString()} baris &bull; {uploadInfo.keluarJenisCount} jenis ({uploadInfo.keluarJenisMatched} cocok, {uploadInfo.keluarJenisUnmatched} belum)</span>
+                                    <span><ArrowDownTrayIcon className="hi-icon-inline" /> Surat Keluar: {uploadInfo.totalRowsKeluar.toLocaleString()} baris &bull; {uploadInfo.keluarJenisCount} jenis ({uploadInfo.keluarJenisMatched} cocok, {uploadInfo.keluarJenisUnmatched} belum)</span>
                                 )}
                             </div>
                             <div className="upload-notif-actions">
@@ -614,7 +620,7 @@ export default function InsightTab() {
                 {dataYear && (
                     <div className="pg-year-override">
                         <div className="pg-year-info">
-                            <span className="pg-year-icon">📅</span>
+                            <CalendarIcon className="pg-year-icon" />
                             <div className="pg-year-info-text">
                                 <span className="pg-year-info-label">Tahun Terdeteksi:</span>
                                 <span className="pg-year-info-value">
@@ -627,7 +633,7 @@ export default function InsightTab() {
                         
                         <div className="pg-year-control">
                             <label className="pg-year-label">
-                                <span className="pg-year-label-icon">✏️</span>
+                                <PencilIcon className="pg-year-label-icon" />
                                 Override Tahun:
                             </label>
                             <select 
@@ -647,12 +653,7 @@ export default function InsightTab() {
                                 className="pg-year-reset"
                                 onClick={() => setTahunOverride(null)}
                             >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                                    <path d="M21 3v5h-5" />
-                                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                                    <path d="M3 21v-5h5" />
-                                </svg>
+                                <ArrowPathIcon className="hi-icon" />
                                 Reset ke Tahun Asli
                             </button>
                         )}
@@ -932,7 +933,7 @@ export default function InsightTab() {
             <div className="sipede-input-section">
                 <div className="sipede-input-header" onClick={() => setShowSipedeForm(!showSipedeForm)}>
                     <div className="sipede-input-header-left">
-                        <h2 className="sipede-input-title">📊 Input Statistik SIPEDE</h2>
+                        <h2 className="sipede-input-title"><ChartPieIcon className="hi-icon-inline" /> Input Statistik SIPEDE</h2>
                         <p className="sipede-input-subtitle">Input manual data statistik user SIPEDE untuk grafik dashboard</p>
                     </div>
                     <span className="sipede-input-toggle">{showSipedeForm ? '▲' : '▼'}</span>
@@ -1003,7 +1004,8 @@ export default function InsightTab() {
                         </div>
                         <div className="sipede-input-footer">
                             <button className="sipede-save-btn" onClick={handleSaveSipedeStats}>
-                                💾 Simpan Data
+                                <ArrowDownTrayIcon className="hi-icon" />
+                                Simpan Data
                             </button>
                             {sipedeSaved && (
                                 <span className="sipede-saved-notif">
@@ -1285,6 +1287,7 @@ export default function InsightTab() {
                 :global(.hi-icon) { width: 1rem; height: 1rem; display: inline-block; vertical-align: -0.15em; flex-shrink: 0; }
                 :global(.hi-icon-sm) { width: 0.8rem; height: 0.8rem; display: inline-block; vertical-align: -0.1em; flex-shrink: 0; }
                 :global(.hi-icon-lg) { width: 1.4rem; height: 1.4rem; display: inline-block; vertical-align: -0.2em; flex-shrink: 0; }
+                :global(.hi-icon-inline) { width: 1rem; height: 1rem; display: inline-block; vertical-align: middle; margin-right: 0.25rem; flex-shrink: 0; }
                 :global(.pg-empty-state-icon) { width: 3rem; height: 3rem; color: #6ee7b7; margin-bottom: 0.5rem; }
                 :global(.pg-search-icon) { position: absolute; left: 0.65rem; width: 1rem; height: 1rem; color: #94a3b8; pointer-events: none; }
 
@@ -1674,8 +1677,8 @@ export default function InsightTab() {
                 .pg-year-override {
                     display: flex;
                     align-items: center;
-                    gap: 1.5rem;
-                    padding: 0.85rem 1.75rem;
+                    gap: 1rem;
+                    padding: 0.75rem 1.75rem;
                     background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
                     border-bottom: 1px solid #a7f3d0;
                     flex-wrap: wrap;
@@ -1683,59 +1686,63 @@ export default function InsightTab() {
                 .pg-year-info {
                     display: flex;
                     align-items: center;
-                    gap: 0.6rem;
+                    gap: 0.5rem;
                 }
                 .pg-year-icon {
-                    font-size: 1.3rem;
-                    line-height: 1;
+                    width: 1.2rem;
+                    height: 1.2rem;
+                    color: #064e3b;
+                    flex-shrink: 0;
                 }
                 .pg-year-info-text {
                     display: flex;
                     flex-direction: column;
-                    gap: 0.1rem;
+                    gap: 0.15rem;
                 }
                 .pg-year-info-label {
                     font-size: 0.75rem;
                     font-weight: 600;
                     color: #065f46;
-                    text-transform: uppercase;
-                    letter-spacing: 0.3px;
+                    line-height: 1;
                 }
                 .pg-year-info-value {
-                    font-size: 1.1rem;
+                    font-size: 1rem;
                     font-weight: 800;
                     color: #064e3b;
                     letter-spacing: 0.5px;
+                    line-height: 1;
                 }
                 .pg-year-control {
                     display: flex;
                     align-items: center;
-                    gap: 0.75rem;
+                    gap: 0.5rem;
                 }
                 .pg-year-label {
                     display: flex;
                     align-items: center;
-                    gap: 0.4rem;
-                    font-size: 0.85rem;
-                    font-weight: 700;
+                    gap: 0.35rem;
+                    font-size: 0.8rem;
+                    font-weight: 600;
                     color: #064e3b;
+                    white-space: nowrap;
                 }
                 .pg-year-label-icon {
-                    font-size: 1rem;
-                    line-height: 1;
+                    width: 0.9rem;
+                    height: 0.9rem;
+                    flex-shrink: 0;
                 }
                 .pg-year-select {
-                    padding: 0.5rem 0.85rem;
+                    padding: 0.4rem 0.7rem;
                     border: 1.5px solid #a7f3d0;
-                    border-radius: 10px;
-                    font-size: 0.9rem;
+                    border-radius: 8px;
+                    font-size: 0.85rem;
                     font-weight: 700;
                     color: #064e3b;
                     background: #fff;
                     cursor: pointer;
                     outline: none;
                     transition: all 0.2s;
-                    min-width: 180px;
+                    min-width: 160px;
                 }
                 .pg-year-select:hover {
                     border-color: #6ee7b7;
@@ -1749,21 +1756,25 @@ export default function InsightTab() {
                 .pg-year-reset {
                     display: flex;
                     align-items: center;
-                    gap: 0.4rem;
-                    padding: 0.5rem 1rem;
+                    gap: 0.35rem;
+                    padding: 0.4rem 0.85rem;
                     background: #fff;
                     border: 1.5px solid #a7f3d0;
-                    border-radius: 10px;
-                    font-size: 0.8rem;
+                    border-radius: 8px;
+                    font-size: 0.75rem;
                     font-weight: 700;
                     color: #059669;
                     cursor: pointer;
                     transition: all 0.2s;
-                    margin-left: auto;
+                    white-space: nowrap;
                 }
                 .pg-year-reset svg {
                     width: 16px;
                     height: 16px;
+                }
+                .pg-year-reset .hi-icon {
+                    width: 0.9rem;
+                    height: 0.9rem;
                 }
                 .pg-year-reset:hover {
                     background: linear-gradient(135deg, #064e3b, #059669);
@@ -1797,6 +1808,7 @@ export default function InsightTab() {
                     box-shadow: 0 4px 16px rgba(0,0,0,0.15);
                 }
                 .pg-upload-btn svg { width: 16px; height: 16px; }
+                .pg-upload-btn .hi-icon { width: 1rem; height: 1rem; }
                 .pg-upload-btn-keluar {
                     background: rgba(16,185,129,0.25);
                     border-color: rgba(16,185,129,0.35);
@@ -2454,6 +2466,9 @@ export default function InsightTab() {
                     border-top: 1px solid #f1f0f6;
                 }
                 .sipede-save-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
                     padding: 0.6rem 1.3rem;
                     background: linear-gradient(135deg, #1e1b4b, #7c3aed);
                     color: #fff;
