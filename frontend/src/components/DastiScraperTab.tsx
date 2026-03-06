@@ -16,6 +16,9 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function DastiScraperTab() {
+    // DASTI Login URL constant
+    const DASTI_LOGIN_URL = 'https://dasti.kejaksaan.go.id';
+
     // Status state
     const [status, setStatus] = useState<ScraperStatus | null>(null);
     const [tableInfo, setTableInfo] = useState<DetectTableResponse | null>(null);
@@ -25,7 +28,6 @@ export default function DastiScraperTab() {
     // Scraping options
     const [startPage, setStartPage] = useState(1);
     const [endPage, setEndPage] = useState(0);
-    const [loginUrl, setLoginUrl] = useState('');
     const [dataPageUrl, setDataPageUrl] = useState('');
 
     // Data state
@@ -109,7 +111,7 @@ export default function DastiScraperTab() {
         setIsLoading(true);
         setError('');
         try {
-            const result = await api.openBrowser(loginUrl);
+            const result = await api.openBrowser(DASTI_LOGIN_URL);
             if (result.success) {
                 setStep('waiting-login');
             } else {
@@ -370,23 +372,13 @@ export default function DastiScraperTab() {
                             </svg>
                         </div>
                         <h2>Mulai Scraping DASTI</h2>
-                        <p>Masukkan URL login DASTI dan klik tombol untuk membuka browser</p>
-                        
-                        <div className="max-pages-input">
-                            <label>URL Login DASTI:</label>
-                            <input
-                                type="text"
-                                value={loginUrl}
-                                onChange={(e) => setLoginUrl(e.target.value)}
-                                placeholder="https://dasti.example.com/login"
-                            />
-                        </div>
+                        <p>Klik tombol untuk membuka browser dan login ke DASTI</p>
 
                         <button onClick={handleOpenBrowser} className="primary-btn" disabled={isLoading}>
                             {isLoading ? (
                                 <><span className="spinner" /> Membuka browser...</>
                             ) : (
-                                <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg> Buka Browser DASTI</>
+                                <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg> Open DASTI Login</>
                             )}
                         </button>
                     </div>

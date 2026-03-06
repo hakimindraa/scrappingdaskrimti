@@ -102,6 +102,38 @@ export default function InsightTab() {
         setSipedeStats((prev: Record<string, number>) => ({ ...prev, [key]: num }));
     };
 
+    // --- Validation for SIPEDE Stats ---
+    const sipedeValidation = useMemo(() => {
+        const errors: string[] = [];
+        
+        // Check if totals are consistent
+        const totalAktifCalc = sipedeStats.statusAktif + sipedeStats.statusTidakAktif;
+        const totalTercatatCalc = sipedeStats.tercatatSipede + sipedeStats.tidakTercatatSipede;
+        const totalEsignCalc = sipedeStats.terdaftarEsign + sipedeStats.tidakTerdaftarEsign;
+        
+        // All totals should match
+        if (totalAktifCalc !== totalTercatatCalc) {
+            errors.push(`Total Status (${totalAktifCalc}) tidak sama dengan Total Tercatat (${totalTercatatCalc})`);
+        }
+        
+        if (totalAktifCalc !== totalEsignCalc) {
+            errors.push(`Total Status (${totalAktifCalc}) tidak sama dengan Total E-sign (${totalEsignCalc})`);
+        }
+        
+        // Check if any total is 0
+        if (totalAktifCalc === 0) {
+            errors.push('Total user tidak boleh 0');
+        }
+        
+        return {
+            isValid: errors.length === 0,
+            errors,
+            totalAktif: totalAktifCalc,
+            totalTercatat: totalTercatatCalc,
+            totalEsign: totalEsignCalc
+        };
+    }, [sipedeStats]);
+
     // --- Pengelompokan State ---
     const [checkedGroups, setCheckedGroups] = useState<Set<string>>(new Set(KELOMPOK_LIST));
     const [customGroups, setCustomGroups] = useState<{ name: string; asalList: string[] }[]>([]);
@@ -946,7 +978,7 @@ export default function InsightTab() {
                                 <input
                                     type="number"
                                     min="0"
-                                    className="sipede-field-input"
+                                    className={`sipede-field-input ${!sipedeValidation.isValid ? 'sipede-field-error' : ''}`}
                                     value={sipedeStats.statusAktif}
                                     onChange={e => updateSipedeStat('statusAktif', e.target.value)}
                                 />
@@ -956,7 +988,7 @@ export default function InsightTab() {
                                 <input
                                     type="number"
                                     min="0"
-                                    className="sipede-field-input"
+                                    className={`sipede-field-input ${!sipedeValidation.isValid ? 'sipede-field-error' : ''}`}
                                     value={sipedeStats.statusTidakAktif}
                                     onChange={e => updateSipedeStat('statusTidakAktif', e.target.value)}
                                 />
@@ -966,7 +998,7 @@ export default function InsightTab() {
                                 <input
                                     type="number"
                                     min="0"
-                                    className="sipede-field-input"
+                                    className={`sipede-field-input ${!sipedeValidation.isValid ? 'sipede-field-error' : ''}`}
                                     value={sipedeStats.tercatatSipede}
                                     onChange={e => updateSipedeStat('tercatatSipede', e.target.value)}
                                 />
@@ -976,7 +1008,7 @@ export default function InsightTab() {
                                 <input
                                     type="number"
                                     min="0"
-                                    className="sipede-field-input"
+                                    className={`sipede-field-input ${!sipedeValidation.isValid ? 'sipede-field-error' : ''}`}
                                     value={sipedeStats.tidakTercatatSipede}
                                     onChange={e => updateSipedeStat('tidakTercatatSipede', e.target.value)}
                                 />
@@ -986,7 +1018,7 @@ export default function InsightTab() {
                                 <input
                                     type="number"
                                     min="0"
-                                    className="sipede-field-input"
+                                    className={`sipede-field-input ${!sipedeValidation.isValid ? 'sipede-field-error' : ''}`}
                                     value={sipedeStats.terdaftarEsign}
                                     onChange={e => updateSipedeStat('terdaftarEsign', e.target.value)}
                                 />
@@ -996,14 +1028,43 @@ export default function InsightTab() {
                                 <input
                                     type="number"
                                     min="0"
-                                    className="sipede-field-input"
+                                    className={`sipede-field-input ${!sipedeValidation.isValid ? 'sipede-field-error' : ''}`}
                                     value={sipedeStats.tidakTerdaftarEsign}
                                     onChange={e => updateSipedeStat('tidakTerdaftarEsign', e.target.value)}
                                 />
                             </div>
                         </div>
+                        
+                        {/* Validation Errors */}
+                        {!sipedeValidation.isValid && (
+                            <div className="sipede-validation-errors">
+                                <div className="sipede-error-header">
+                                    <ExclamationCircleIcon className="hi-icon" />
+                                    <strong>Data tidak valid!</strong>
+                                </div>
+                                <ul className="sipede-error-list">
+                                    {sipedeValidation.errors.map((error, i) => (
+                                        <li key={i}>{error}</li>
+                                    ))}
+                                </ul>
+                                <div className="sipede-error-hint">
+                                    <strong>Hint:</strong> Total dari setiap pasangan harus sama.
+                                    <br />
+                                    • Status: {sipedeValidation.totalAktif} user
+                                    <br />
+                                    • Tercatat: {sipedeValidation.totalTercatat} user
+                                    <br />
+                                    • E-sign: {sipedeValidation.totalEsign} user
+                                </div>
+                            </div>
+                        )}
+                        
                         <div className="sipede-input-footer">
-                            <button className="sipede-save-btn" onClick={handleSaveSipedeStats}>
+                            <button 
+                                className="sipede-save-btn" 
+                                onClick={handleSaveSipedeStats}
+                                disabled={!sipedeValidation.isValid}
+                            >
                                 <ArrowDownTrayIcon className="hi-icon" />
                                 Simpan Data
                             </button>
@@ -2457,6 +2518,48 @@ export default function InsightTab() {
                     margin: 0;
                 }
                 .sipede-field-input { -moz-appearance: textfield; }
+                .sipede-field-input.sipede-field-error {
+                    border-color: #ef4444;
+                    background: #fef2f2;
+                }
+                .sipede-field-input.sipede-field-error:focus {
+                    border-color: #dc2626;
+                    box-shadow: 0 0 0 4px rgba(239,68,68,0.1);
+                }
+                .sipede-validation-errors {
+                    margin-top: 1rem;
+                    padding: 1rem;
+                    background: #fef2f2;
+                    border: 1.5px solid #fca5a5;
+                    border-radius: 10px;
+                }
+                .sipede-error-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    color: #dc2626;
+                    font-size: 0.9rem;
+                    font-weight: 700;
+                    margin-bottom: 0.75rem;
+                }
+                .sipede-error-list {
+                    margin: 0;
+                    padding-left: 1.5rem;
+                    color: #991b1b;
+                    font-size: 0.85rem;
+                    line-height: 1.6;
+                }
+                .sipede-error-list li {
+                    margin-bottom: 0.35rem;
+                }
+                .sipede-error-hint {
+                    margin-top: 0.75rem;
+                    padding-top: 0.75rem;
+                    border-top: 1px solid #fca5a5;
+                    font-size: 0.8rem;
+                    color: #7f1d1d;
+                    line-height: 1.6;
+                }
                 .sipede-input-footer {
                     display: flex;
                     align-items: center;
@@ -2480,10 +2583,16 @@ export default function InsightTab() {
                     transition: all 0.2s;
                     letter-spacing: 0.3px;
                 }
-                .sipede-save-btn:hover {
+                .sipede-save-btn:hover:not(:disabled) {
                     transform: translateY(-2px);
                     box-shadow: 0 4px 14px rgba(124,58,237,0.3);
                     background: linear-gradient(135deg, #312e81, #6d28d9);
+                }
+                .sipede-save-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                    transform: none;
+                    box-shadow: none;
                 }
                 .sipede-saved-notif {
                     display: inline-flex;
