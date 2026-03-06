@@ -22,6 +22,156 @@ Write-Color "[INFO] Direktori: $scriptDir" "Gray"
 Write-Host ""
 
 # ============================================
+# Auto-detect and Update IP Address
+# ============================================
+Write-Color "[0/5] Auto-detect IP Address..." "Yellow"
+
+# Get local IP address
+$localIP = $null
+$wifiAdapter = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { 
+    $_.InterfaceAlias -like "*Wi-Fi*" -and $_.PrefixOrigin -eq "Dhcp" 
+}
+
+if ($wifiAdapter) {
+    $localIP = $wifiAdapter.IPAddress
+} else {
+    $ethAdapter = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { 
+        $_.InterfaceAlias -like "*Ethernet*" -and $_.PrefixOrigin -eq "Dhcp" 
+    }
+    if ($ethAdapter) {
+        $localIP = $ethAdapter.IPAddress
+    } else {
+        $anyAdapter = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { 
+            $_.PrefixOrigin -eq "Dhcp" 
+        } | Select-Object -First 1
+        if ($anyAdapter) {
+            $localIP = $anyAdapter.IPAddress
+        }
+    }
+}
+
+if ($localIP) {
+    Write-Color "  OK IP Address detected: $localIP" "Green"
+    
+    # Update frontend .env.local
+    $envLocalPath = Join-Path $scriptDir "frontend\.env.local"
+    $envContent = @"
+# Backend API URLs
+# Auto-updated by start-scraper.ps1 on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+
+NEXT_PUBLIC_SIPEDE_API_URL=http://${localIP}:5000
+NEXT_PUBLIC_SPP_API_URL=http://${localIP}:5001
+NEXT_PUBLIC_DASTI_API_URL=http://${localIP}:5002
+
+# Laptop Server IP: $localIP
+# Akses dari laptop lain: http://${localIP}:3000
+"@
+    
+    $envContent | Out-File -FilePath $envLocalPath -Encoding UTF8 -Force
+    Write-Color "  OK Frontend .env.local updated" "Green"
+    
+    # Check if running as Administrator
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    
+    # Check firewall rules
+    $firewallRules = Get-NetFirewallRule -DisplayName "Web Scraper*" -ErrorAction SilentlyContinue
+    if ($firewallRules) {
+        Write-Color "  OK Firewall rules exist" "Green"
+        
+        # Check specifically for DASTI rules (inbound and outbound)
+        $dastiInbound = Get-NetFirewallRule -DisplayName "*DASTI*In*" -ErrorAction SilentlyContinue
+        $dastiOutbound = Get-NetFirewallRule -DisplayName "*DASTI*Out*" -ErrorAction SilentlyContinue
+        
+        if (-not $dastiInbound -or -not $dastiOutbound) {
+            if ($isAdmin) {
+                Write-Color "  WARNING: DASTI firewall rules incomplete!" "Yellow"
+                Write-Color "           Mencoba memperbaiki..." "Yellow"
+                
+                # Try to fix DASTI firewall rules
+                try {
+                    # Remove old DASTI rules
+                    Remove-NetFirewallRule -DisplayName "*DASTI*" -ErrorAction SilentlyContinue
+                    
+                    # Create new DASTI rules (inbound + outbound)
+                    New-NetFirewallRule -DisplayName "Web Scraper - DASTI (In)" -Direction Inbound -LocalPort 5002 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                    New-NetFirewallRule -DisplayName "Web Scraper - DASTI (Out)" -Direction Outbound -LocalPort 5002 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                    
+                    Write-Color "  OK DASTI firewall rules fixed!" "Green"
+                } catch {
+                    Write-Color "  ERROR: Gagal fix DASTI firewall" "Red"
+                    Write-Color "         Jalankan Setup-NetworkAccess.bat as Administrator" "Yellow"
+                }
+            } else {
+                Write-Color "  WARNING: DASTI firewall rules incomplete!" "Yellow"
+                Write-Color "           Jalankan Setup-NetworkAccess.bat as Administrator" "Yellow"
+            }
+        } else {
+            Write-Color "  OK DASTI firewall rules complete" "Green"
+        }
+    } else {
+        if ($isAdmin) {
+            Write-Color "  WARNING: Firewall rules not found!" "Yellow"
+            Write-Color "           Creating firewall rules..." "Yellow"
+            
+            # Create all firewall rules
+            try {
+                # Frontend
+                New-NetFirewallRule -DisplayName "Web Scraper - Frontend (In)" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                New-NetFirewallRule -DisplayName "Web Scraper - Frontend (Out)" -Direction Outbound -LocalPort 3000 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                
+                # SIPEDE
+                New-NetFirewallRule -DisplayName "Web Scraper - SIPEDE (In)" -Direction Inbound -LocalPort 5000 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                New-NetFirewallRule -DisplayName "Web Scraper - SIPEDE (Out)" -Direction Outbound -LocalPort 5000 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                
+                # SPP
+                New-NetFirewallRule -DisplayName "Web Scraper - SPP (In)" -Direction Inbound -LocalPort 5001 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                New-NetFirewallRule -DisplayName "Web Scraper - SPP (Out)" -Direction Outbound -LocalPort 5001 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                
+                # DASTI
+                New-NetFirewallRule -DisplayName "Web Scraper - DASTI (In)" -Direction Inbound -LocalPort 5002 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                New-NetFirewallRule -DisplayName "Web Scraper - DASTI (Out)" -Direction Outbound -LocalPort 5002 -Protocol TCP -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+                
+                Write-Color "  OK All firewall rules created!" "Green"
+            } catch {
+                Write-Color "  ERROR: Gagal membuat firewall rules" "Red"
+                Write-Color "         $_" "Red"
+            }
+        } else {
+            Write-Color "  WARNING: Firewall rules not found!" "Yellow"
+            Write-Color "           Script akan restart dengan Administrator privileges..." "Yellow"
+            Write-Host ""
+            Write-Color "Restarting with Administrator privileges..." "Yellow"
+            Start-Sleep -Seconds 2
+            
+            # Restart script as Administrator
+            $scriptPath = $MyInvocation.MyCommand.Path
+            Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -Verb RunAs
+            exit
+        }
+    }
+} else {
+    Write-Color "  WARNING: Tidak dapat detect IP Address" "Yellow"
+    Write-Color "           Menggunakan localhost (hanya akses lokal)" "Yellow"
+    
+    # Fallback to localhost
+    $envLocalPath = Join-Path $scriptDir "frontend\.env.local"
+    $envContent = @"
+# Backend API URLs
+# Auto-updated by start-scraper.ps1 on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+
+NEXT_PUBLIC_SIPEDE_API_URL=http://localhost:5000
+NEXT_PUBLIC_SPP_API_URL=http://localhost:5001
+NEXT_PUBLIC_DASTI_API_URL=http://localhost:5002
+
+# No network IP detected - using localhost only
+"@
+    
+    $envContent | Out-File -FilePath $envLocalPath -Encoding UTF8 -Force
+}
+
+Write-Host ""
+
+# ============================================
 # Check Dependencies
 # ============================================
 Write-Color "[1/5] Mengecek dependencies..." "Yellow"
@@ -261,8 +411,11 @@ npm start
 @echo off
 title SPP Backend - Port 5001
 cd /d "$scriptDir\spp-scraper"
+echo Starting SPP Backend...
+echo.
 call venv\Scripts\activate.bat
-uvicorn app.main:app --reload --host 0.0.0.0 --port 5001
+echo Uvicorn starting on 0.0.0.0:5001...
+uvicorn app.main:app --host 0.0.0.0 --port 5001 --reload
 "@ | Out-File -FilePath $sppBat -Encoding ASCII
 
 # DASTI Backend batch
@@ -270,8 +423,11 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 5001
 @echo off
 title DASTI Backend - Port 5002
 cd /d "$scriptDir\dasti-scraper"
+echo Starting DASTI Backend...
+echo.
 call venv\Scripts\activate.bat
-uvicorn app.main:app --reload --host 0.0.0.0 --port 5002
+echo Uvicorn starting on 0.0.0.0:5002...
+uvicorn app.main:app --host 0.0.0.0 --port 5002 --reload
 "@ | Out-File -FilePath $dastiBat -Encoding ASCII
 
 # Frontend batch - Production mode for network stability
@@ -309,6 +465,28 @@ Write-Color "  OK Frontend started (Production)" "Green"
 Write-Host ""
 
 # ============================================
+# Verify DASTI Network Binding
+# ============================================
+Write-Color "Verifying DASTI network binding..." "Gray"
+Start-Sleep -Seconds 3
+
+try {
+    $dastiBinding = netstat -ano | Select-String "5002" | Select-String "LISTENING"
+    if ($dastiBinding -match "0\.0\.0\.0:5002") {
+        Write-Color "  OK DASTI listening on 0.0.0.0:5002 (Network Access Ready)" "Green"
+    } elseif ($dastiBinding -match "127\.0\.0\.1:5002") {
+        Write-Color "  WARNING: DASTI only listening on 127.0.0.1:5002 (Localhost Only)" "Yellow"
+        Write-Color "           Restart DASTI backend jika masalah berlanjut" "Yellow"
+    } else {
+        Write-Color "  INFO: DASTI binding check inconclusive" "Gray"
+    }
+} catch {
+    Write-Color "  INFO: Could not verify DASTI binding" "Gray"
+}
+
+Write-Host ""
+
+# ============================================
 # Open Browser
 # ============================================
 Write-Color "[5/5] Membuka browser..." "Yellow"
@@ -332,13 +510,30 @@ if ($ollamaInstalled) {
     Write-Color "    Ollama Service: http://localhost:11434" "White"
 }
 Write-Host ""
-Write-Color "  Akses dari Laptop Lain (WiFi sama):" "Yellow"
-Write-Color "    Frontend:       http://${localIP}:3000" "Magenta"
-Write-Color "    SIPEDE Backend: http://${localIP}:5000" "Magenta"
-Write-Color "    SPP Backend:    http://${localIP}:5001" "Magenta"
-Write-Color "    DASTI Backend:  http://${localIP}:5002" "Magenta"
-if ($ollamaInstalled) {
-    Write-Color "    Ollama Service: http://${localIP}:11434" "Magenta"
+
+if ($localIP) {
+    Write-Color "  Akses dari Laptop Lain (WiFi sama):" "Yellow"
+    Write-Color "    Frontend:       http://${localIP}:3000" "Magenta"
+    Write-Color "    SIPEDE Backend: http://${localIP}:5000" "Magenta"
+    Write-Color "    SPP Backend:    http://${localIP}:5001" "Magenta"
+    Write-Color "    DASTI Backend:  http://${localIP}:5002" "Magenta"
+    if ($ollamaInstalled) {
+        Write-Color "    Ollama Service: http://${localIP}:11434" "Magenta"
+    }
+    Write-Host ""
+    
+    # Check firewall warning
+    $firewallRules = Get-NetFirewallRule -DisplayName "Web Scraper*" -ErrorAction SilentlyContinue
+    if (-not $firewallRules) {
+        Write-Color "  ⚠ FIREWALL WARNING:" "Red"
+        Write-Color "    Akses dari laptop lain mungkin TIDAK BERFUNGSI" "Yellow"
+        Write-Color "    Jalankan: Setup-NetworkAccess.bat (as Administrator)" "Yellow"
+        Write-Host ""
+    }
+} else {
+    Write-Color "  Network Access: DISABLED (localhost only)" "Gray"
+    Write-Color "    Pastikan laptop terhubung ke WiFi/Ethernet" "Gray"
+    Write-Host ""
 }
 Write-Host ""
 Write-Color "  Frontend Mode: PRODUCTION BUILD" "Green"

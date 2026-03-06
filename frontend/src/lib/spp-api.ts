@@ -61,13 +61,21 @@ export interface DetectTableResponse {
     message?: string;
 }
 
-// API Configuration - dynamically use same hostname as browser
+// API Configuration - prioritize environment variable for network access
 function getApiBaseUrl(): string {
+    // Priority 1: Environment variable (for network access from other devices)
+    if (process.env.NEXT_PUBLIC_SPP_API_URL) {
+        return process.env.NEXT_PUBLIC_SPP_API_URL;
+    }
+    
+    // Priority 2: Dynamic hostname (fallback for local development)
     if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         return `http://${hostname}:5001`;
     }
-    return process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001';
+    
+    // Priority 3: Default localhost
+    return 'http://localhost:5001';
 }
 
 // API Functions

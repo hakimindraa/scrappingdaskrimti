@@ -93,13 +93,21 @@ export interface ActivityLogsResponse {
     count: number;
 }
 
-// API Configuration
+// API Configuration - prioritize environment variable for network access
 function getApiBaseUrl(): string {
+    // Priority 1: Environment variable (for network access from other devices)
+    if (process.env.NEXT_PUBLIC_DASTI_API_URL) {
+        return process.env.NEXT_PUBLIC_DASTI_API_URL;
+    }
+    
+    // Priority 2: Dynamic hostname (fallback for local development)
     if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         return `http://${hostname}:5002`;
     }
-    return process.env.NEXT_PUBLIC_DASTI_API_URL || 'http://localhost:5002';
+    
+    // Priority 3: Default localhost
+    return 'http://localhost:5002';
 }
 
 // Browser Management

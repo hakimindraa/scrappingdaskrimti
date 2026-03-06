@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { KELOMPOK_LIST, AsalEntry } from '../data/masterAsal';
@@ -51,6 +51,47 @@ export default function InsightTab() {
     const [hasUploadedAsal, setHasUploadedAsal] = useState(false);
     const [rawRowsKeluar, setRawRowsKeluar] = useState<RawRowKeluar[]>([]);
     const [hasUploadedKeluar, setHasUploadedKeluar] = useState(false);
+
+    // --- SIPEDE Manual Stats State ---
+    const [sipedeStats, setSipedeStats] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('sipede_manual_stats');
+            if (saved) {
+                try { return JSON.parse(saved); } catch { /* ignore */ }
+            }
+        }
+        return { statusAktif: 131, statusTidakAktif: 0, tercatatSipede: 131, tidakTercatatSipede: 8, terdaftarEsign: 56, tidakTerdaftarEsign: 83 };
+    });
+    const [sipedeSaved, setSipedeSaved] = useState(false);
+    const [showSipedeForm, setShowSipedeForm] = useState(true);
+
+    // --- Computed donut percentages ---
+    const totalAktif = sipedeStats.statusAktif + sipedeStats.statusTidakAktif;
+    const pctAktif = useMemo(() => {
+        return totalAktif > 0 ? (sipedeStats.statusAktif / totalAktif) * 100 : 0;
+    }, [sipedeStats.statusAktif, totalAktif]);
+
+    const totalTercatat = sipedeStats.tercatatSipede + sipedeStats.tidakTercatatSipede;
+    const pctTercatat = useMemo(() => {
+        return totalTercatat > 0 ? (sipedeStats.tercatatSipede / totalTercatat) * 100 : 0;
+    }, [sipedeStats.tercatatSipede, totalTercatat]);
+
+    const totalEsign = sipedeStats.terdaftarEsign + sipedeStats.tidakTerdaftarEsign;
+    const pctEsign = useMemo(() => {
+        return totalEsign > 0 ? (sipedeStats.terdaftarEsign / totalEsign) * 100 : 0;
+    }, [sipedeStats.terdaftarEsign, totalEsign]);
+
+    const handleSaveSipedeStats = () => {
+        localStorage.setItem('sipede_manual_stats', JSON.stringify(sipedeStats));
+        setSipedeSaved(true);
+        setTimeout(() => setSipedeSaved(false), 3000);
+    };
+
+    const updateSipedeStat = (key: string, value: string) => {
+        const num = value === '' ? 0 : parseInt(value, 10);
+        if (isNaN(num) || num < 0) return;
+        setSipedeStats((prev: Record<string, number>) => ({ ...prev, [key]: num }));
+    };
 
     // --- Pengelompokan State ---
     const [checkedGroups, setCheckedGroups] = useState<Set<string>>(new Set(KELOMPOK_LIST));
@@ -821,6 +862,93 @@ export default function InsightTab() {
                 </div>
             )}
 
+            {/* ===== SIPEDE MANUAL INPUT SECTION ===== */}
+            <div className="sipede-input-section">
+                <div className="sipede-input-header" onClick={() => setShowSipedeForm(!showSipedeForm)}>
+                    <div className="sipede-input-header-left">
+                        <h2 className="sipede-input-title">📊 Input Statistik SIPEDE</h2>
+                        <p className="sipede-input-subtitle">Input manual data statistik user SIPEDE untuk grafik dashboard</p>
+                    </div>
+                    <span className="sipede-input-toggle">{showSipedeForm ? '▲' : '▼'}</span>
+                </div>
+                {showSipedeForm && (
+                    <div className="sipede-input-body">
+                        <div className="sipede-input-grid">
+                            <div className="sipede-field">
+                                <label className="sipede-field-label">Status Aktif</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="sipede-field-input"
+                                    value={sipedeStats.statusAktif}
+                                    onChange={e => updateSipedeStat('statusAktif', e.target.value)}
+                                />
+                            </div>
+                            <div className="sipede-field">
+                                <label className="sipede-field-label">Status Tidak Aktif</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="sipede-field-input"
+                                    value={sipedeStats.statusTidakAktif}
+                                    onChange={e => updateSipedeStat('statusTidakAktif', e.target.value)}
+                                />
+                            </div>
+                            <div className="sipede-field">
+                                <label className="sipede-field-label">Tercatat SIPEDE</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="sipede-field-input"
+                                    value={sipedeStats.tercatatSipede}
+                                    onChange={e => updateSipedeStat('tercatatSipede', e.target.value)}
+                                />
+                            </div>
+                            <div className="sipede-field">
+                                <label className="sipede-field-label">Tidak Tercatat SIPEDE</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="sipede-field-input"
+                                    value={sipedeStats.tidakTercatatSipede}
+                                    onChange={e => updateSipedeStat('tidakTercatatSipede', e.target.value)}
+                                />
+                            </div>
+                            <div className="sipede-field">
+                                <label className="sipede-field-label">Terdaftar E-sign</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="sipede-field-input"
+                                    value={sipedeStats.terdaftarEsign}
+                                    onChange={e => updateSipedeStat('terdaftarEsign', e.target.value)}
+                                />
+                            </div>
+                            <div className="sipede-field">
+                                <label className="sipede-field-label">Tidak Terdaftar E-sign</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="sipede-field-input"
+                                    value={sipedeStats.tidakTerdaftarEsign}
+                                    onChange={e => updateSipedeStat('tidakTerdaftarEsign', e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="sipede-input-footer">
+                            <button className="sipede-save-btn" onClick={handleSaveSipedeStats}>
+                                💾 Simpan Data
+                            </button>
+                            {sipedeSaved && (
+                                <span className="sipede-saved-notif">
+                                    <CheckCircleIcon className="hi-icon" /> Data berhasil disimpan!
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {/* Download Button - Outside dashboard area */}
             <div className="download-bar">
                 <button className="download-btn" onClick={handleDownloadPNG} disabled={isDownloading}>
@@ -879,34 +1007,62 @@ export default function InsightTab() {
                     <div className="card card-persen">
                         <div className="card-label purple-label">PERSENTASE USER SIPEDE</div>
                         <div className="card-body persen-body">
-                            <div className="donut-group">
+                            {/* Top row: 2 large donuts */}
+                            <div className="donut-row-top">
                                 {/* Donut 1: Tercatat SIPEDE */}
-                                <div className="donut-item">
-                                    <svg viewBox="0 0 100 100" width="100" height="100">
-                                        <circle cx="50" cy="50" r="38" fill="none" stroke="#e5e7eb" strokeWidth="12" />
-                                        <path d={donutArc(50, 50, 38, 0, 338.4)} fill="none" stroke="#c026d3" strokeWidth="12" strokeLinecap="round" />
-                                        <text x="50" y="46" textAnchor="middle" fontSize="11" fontWeight="700" fill="#1e1b4b">94%</text>
-                                    </svg>
-                                    <div className="donut-sub">Tercatat<br />SIPEDE</div>
+                                <div className="donut-wrapper">
+                                    <div className="donut-ring-container">
+                                        <svg viewBox="0 0 120 120" className="donut-ring">
+                                            <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="16" />
+                                            {totalTercatat > 0 && (100 - pctTercatat) > 0.1 && <path d={donutArc(60, 60, 50, Math.min(pctTercatat * 3.6, 359.9), 360)} fill="none" stroke="#f59e0b" strokeWidth="16" />}
+                                            {totalTercatat > 0 && pctTercatat > 0 && <path d={donutArc(60, 60, 50, 0, Math.min(pctTercatat * 3.6, 359.9))} fill="none" stroke="#c026d3" strokeWidth="16" />}
+                                        </svg>
+                                        <div className="donut-pct donut-pct-left">{Math.round(pctTercatat)}%</div>
+                                        {/* Label: Tidak Tercatat SIPEDE */}
+                                        <div className="donut-label-top-right">
+                                            <span className="donut-label-text">Tidak Tercatat<br />SIPEDE</span>
+                                            <span className="donut-label-pct orange">{totalTercatat > 0 ? (100 - Math.round(pctTercatat)) : 0}%</span>
+                                        </div>
+                                    </div>
+                                    <div className="donut-name-bottom-left">Tercatat<br />SIPEDE</div>
                                 </div>
+
                                 {/* Donut 2: Terdaftar E-sign */}
-                                <div className="donut-item">
-                                    <svg viewBox="0 0 100 100" width="100" height="100">
-                                        <circle cx="50" cy="50" r="38" fill="none" stroke="#e5e7eb" strokeWidth="12" />
-                                        <path d={donutArc(50, 50, 38, 0, 223.2)} fill="none" stroke="#c026d3" strokeWidth="12" strokeLinecap="round" />
-                                        <path d={donutArc(50, 50, 38, 223.2, 288)} fill="none" stroke="#f472b6" strokeWidth="12" strokeLinecap="round" />
-                                        <text x="50" y="46" textAnchor="middle" fontSize="11" fontWeight="700" fill="#1e1b4b">62%</text>
-                                    </svg>
-                                    <div className="donut-sub">Terdaftar<br />E-sign</div>
+                                <div className="donut-wrapper">
+                                    <div className="donut-ring-container">
+                                        <svg viewBox="0 0 120 120" className="donut-ring">
+                                            <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="16" />
+                                            {totalEsign > 0 && pctEsign > 0 && <path d={donutArc(60, 60, 50, Math.min((100 - pctEsign) * 3.6, 359.9), 360)} fill="none" stroke="#f59e0b" strokeWidth="16" />}
+                                            {totalEsign > 0 && (100 - pctEsign) > 0 && <path d={donutArc(60, 60, 50, 0, Math.min((100 - pctEsign) * 3.6, 359.9))} fill="none" stroke="#c026d3" strokeWidth="16" />}
+                                        </svg>
+                                        <div className="donut-pct donut-pct-left">{totalEsign > 0 ? Math.round(100 - pctEsign) : 0}%</div>
+                                        {/* Label: Tidak Terdaftar E-sign */}
+                                        <div className="donut-label-top-center">
+                                            <span className="donut-label-text">Tidak Terdaftar<br />E-sign</span>
+                                        </div>
+                                        {/* Label: Terdaftar E-sign */}
+                                        <div className="donut-label-right">
+                                            <span className="donut-label-text">Terdaftar<br />E-sign</span>
+                                            <span className="donut-label-pct orange">{Math.round(pctEsign)}%</span>
+                                        </div>
+                                    </div>
+                                    <div className="donut-name-bottom-left">&nbsp;</div>
                                 </div>
-                                {/* Donut 3: Status Aktif */}
-                                <div className="donut-item">
-                                    <svg viewBox="0 0 100 100" width="80" height="80">
-                                        <circle cx="50" cy="50" r="38" fill="none" stroke="#c026d3" strokeWidth="12" />
-                                        <text x="50" y="42" textAnchor="middle" fontSize="9" fontWeight="600" fill="#1e1b4b">Status</text>
-                                        <text x="50" y="53" textAnchor="middle" fontSize="9" fontWeight="600" fill="#1e1b4b">Aktif</text>
-                                        <text x="50" y="66" textAnchor="middle" fontSize="12" fontWeight="700" fill="#c026d3">100%</text>
-                                    </svg>
+                            </div>
+
+                            {/* Bottom row: Status Aktif centered */}
+                            <div className="donut-row-bottom">
+                                <div className="donut-wrapper-sm">
+                                    <div className="donut-ring-container-sm">
+                                        <svg viewBox="0 0 120 120" className="donut-ring-sm">
+                                            <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="14" />
+                                            {totalAktif > 0 && pctAktif > 0 && <path d={donutArc(60, 60, 50, 0, Math.min(pctAktif * 3.6, 359.9))} fill="none" stroke="#c026d3" strokeWidth="14" />}
+                                            {totalAktif > 0 && (100 - pctAktif) > 0.5 && <path d={donutArc(60, 60, 50, Math.min(pctAktif * 3.6, 359.9), 360)} fill="none" stroke="#f59e0b" strokeWidth="14" />}
+                                        </svg>
+                                        <div className="donut-pct-center">
+                                            <strong>Status<br />Aktif<br />{Math.round(pctAktif)}%</strong>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1174,10 +1330,78 @@ export default function InsightTab() {
                 .total-value { font-size: 1.75rem; font-weight: 800; color: #1e1b4b; margin-left: auto; }
 
                 /* ===== Card 2: Persentase ===== */
-                .persen-body { align-items: center; justify-content: center; }
-                .donut-group { display: flex; align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap; }
-                .donut-item { text-align: center; }
-                .donut-sub { font-size: 0.65rem; color: #64748b; margin-top: 0.25rem; font-weight: 600; line-height: 1.2; }
+                .persen-body { align-items: center; justify-content: center; gap: 0; padding: 0.5rem 0.5rem 0.35rem; }
+                .donut-row-top { display: flex; align-items: flex-start; justify-content: center; gap: 0; width: 100%; }
+                .donut-row-bottom { display: flex; justify-content: center; margin-top: 0.15rem; }
+                .donut-wrapper { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+                .donut-wrapper-sm { display: flex; flex-direction: column; align-items: center; }
+                .donut-ring-container { position: relative; width: 110px; height: 110px; }
+                .donut-ring-container-sm { position: relative; width: 95px; height: 95px; }
+                .donut-ring { width: 100%; height: 100%; }
+                .donut-ring-sm { width: 100%; height: 100%; }
+                .donut-pct {
+                    position: absolute;
+                    font-size: 0.9rem;
+                    font-weight: 800;
+                    color: #333;
+                }
+                .donut-pct-left { top: 55%; left: 18%; transform: translate(-50%, -50%); }
+                .donut-pct-center {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    text-align: center;
+                    font-size: 0.8rem;
+                    font-weight: 800;
+                    color: #333;
+                    line-height: 1.25;
+                }
+                .donut-label-top-right {
+                    position: absolute;
+                    top: -8px;
+                    right: -55px;
+                    text-align: left;
+                    line-height: 1.2;
+                }
+                .donut-label-top-center {
+                    position: absolute;
+                    top: -12px;
+                    left: 25%;
+                    transform: translateX(-50%);
+                    text-align: center;
+                    line-height: 1.2;
+                }
+                .donut-label-right {
+                    position: absolute;
+                    top: 15%;
+                    right: -60px;
+                    text-align: left;
+                    line-height: 1.2;
+                }
+                .donut-label-text {
+                    font-size: 0.65rem;
+                    font-weight: 600;
+                    color: #333;
+                    display: block;
+                }
+                .donut-label-pct {
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    display: block;
+                    margin-top: 1px;
+                }
+                .donut-label-pct.orange { color: #f59e0b; }
+                .donut-name-bottom-left {
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    color: #333;
+                    margin-top: 0.2rem;
+                    line-height: 1.2;
+                    align-self: flex-start;
+                    margin-left: 0.25rem;
+                }
+                .donut-sub { font-size: 0.65rem; color: #64748b; margin-top: 0; font-weight: 600; line-height: 1.2; }
 
                 /* ===== Card 3: Tren ===== */
                 .tren-body { align-items: center; }
@@ -1904,6 +2128,128 @@ export default function InsightTab() {
                 }
                 .upload-notif-close:hover {
                     background: rgba(0,0,0,0.08);
+                }
+
+                /* ===== SIPEDE Manual Input Section ===== */
+                .sipede-input-section {
+                    background: #ffffff;
+                    border-radius: 20px;
+                    box-shadow: 0 4px 24px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.03);
+                    margin-bottom: 1.5rem;
+                    overflow: hidden;
+                    border: 1px solid #e2e8f0;
+                }
+                .sipede-input-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 1.25rem 1.75rem;
+                    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+                    cursor: pointer;
+                    transition: opacity 0.2s;
+                }
+                .sipede-input-header:hover { opacity: 0.95; }
+                .sipede-input-header-left { display: flex; flex-direction: column; gap: 0.2rem; }
+                .sipede-input-title {
+                    margin: 0;
+                    font-size: 1.15rem;
+                    font-weight: 800;
+                    color: #fff;
+                    letter-spacing: 0.3px;
+                }
+                .sipede-input-subtitle {
+                    margin: 0;
+                    font-size: 0.78rem;
+                    color: rgba(255,255,255,0.5);
+                    font-weight: 400;
+                }
+                .sipede-input-toggle {
+                    color: rgba(255,255,255,0.6);
+                    font-size: 1rem;
+                    transition: transform 0.2s;
+                }
+                .sipede-input-body {
+                    padding: 1.5rem 1.75rem;
+                }
+                .sipede-input-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 1rem;
+                }
+                .sipede-field {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.35rem;
+                }
+                .sipede-field-label {
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    color: #475569;
+                    letter-spacing: 0.2px;
+                }
+                .sipede-field-input {
+                    width: 100%;
+                    padding: 0.65rem 0.9rem;
+                    border: 1.5px solid #e8e5f0;
+                    border-radius: 10px;
+                    font-size: 0.95rem;
+                    font-weight: 600;
+                    outline: none;
+                    box-sizing: border-box;
+                    transition: all 0.2s;
+                    background: #faf9fd;
+                    color: #1e1b4b;
+                }
+                .sipede-field-input:focus {
+                    border-color: #7c3aed;
+                    box-shadow: 0 0 0 4px rgba(124,58,237,0.08);
+                    background: #fff;
+                }
+                .sipede-field-input::-webkit-inner-spin-button,
+                .sipede-field-input::-webkit-outer-spin-button {
+                    -webkit-appearance: none;
+                    margin: 0;
+                }
+                .sipede-field-input { -moz-appearance: textfield; }
+                .sipede-input-footer {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    margin-top: 1.25rem;
+                    padding-top: 1rem;
+                    border-top: 1px solid #f1f0f6;
+                }
+                .sipede-save-btn {
+                    padding: 0.6rem 1.3rem;
+                    background: linear-gradient(135deg, #1e1b4b, #7c3aed);
+                    color: #fff;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 0.85rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    letter-spacing: 0.3px;
+                }
+                .sipede-save-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+                    background: linear-gradient(135deg, #312e81, #6d28d9);
+                }
+                .sipede-saved-notif {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.35rem;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    color: #16a34a;
+                    animation: pgFadeIn 0.3s ease;
+                }
+                .donut-detail {
+                    font-size: 0.58rem;
+                    color: #94a3b8;
+                    font-weight: 600;
+                    margin-top: 0.1rem;
                 }
 
                 /* ===== Responsive ===== */

@@ -27,13 +27,14 @@ REM Start server
 echo.
 echo ========================================
 echo Starting DASTI Scraper API...
-echo Server: http://localhost:5002
-echo Docs: http://localhost:5002/docs
+echo Server: http://0.0.0.0:5002 (Network Access)
+echo Local:  http://localhost:5002
+echo Docs:   http://localhost:5002/docs
 echo ========================================
 echo.
 echo Tekan Ctrl+C untuk menghentikan server
 echo.
 
-uvicorn app.main:app --reload --port 5002
+uvicorn app.main:app --host 0.0.0.0 --port 5002 --reload
 
 pause

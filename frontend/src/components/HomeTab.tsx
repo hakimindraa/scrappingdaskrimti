@@ -56,10 +56,15 @@ export default function HomeTab({ onNavigate }: HomeTabProps) {
         setIsLoading(true);
         try {
             const srcArray: SourceStats[] = [];
+            // Get API URLs from environment or use localhost as fallback
+            const sipedeUrl = process.env.NEXT_PUBLIC_SIPEDE_API_URL || 'http://localhost:5000';
+            const sppUrl = process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001';
+            const dastiUrl = process.env.NEXT_PUBLIC_DASTI_API_URL || 'http://localhost:5002';
+            
             const [sipedeServer, sppServer, dastiServer] = await Promise.all([
-                checkServerStatus('SIPEDE', process.env.NEXT_PUBLIC_SIPEDE_API_URL || 'http://localhost:5000'),
-                checkServerStatus('SPDP', process.env.NEXT_PUBLIC_SPP_API_URL || 'http://localhost:5001'),
-                checkServerStatus('DASTI', process.env.NEXT_PUBLIC_DASTI_API_URL || 'http://localhost:5002')
+                checkServerStatus('SIPEDE', sipedeUrl),
+                checkServerStatus('SPDP', sppUrl),
+                checkServerStatus('DASTI', dastiUrl)
             ]);
 
             // SIPEDE
