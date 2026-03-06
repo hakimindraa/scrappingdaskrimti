@@ -490,6 +490,13 @@ export default function InsightTab() {
         return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
     };
 
+    // Get midpoint (x,y) of an arc segment for placing text
+    const arcMid = (cx: number, cy: number, r: number, startDeg: number, endDeg: number) => {
+        const midDeg = (startDeg + endDeg) / 2;
+        const rad = (midDeg - 90) * Math.PI / 180;
+        return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad), deg: midDeg };
+    };
+
     // --- Line Chart Helpers ---
     const trendMax = Math.max(...trendMasuk, ...trendKeluar, 1);
     const gridStep = trendMax <= 500 ? 100 : trendMax <= 1500 ? 200 : 500;
@@ -1007,63 +1014,96 @@ export default function InsightTab() {
                     <div className="card card-persen">
                         <div className="card-label purple-label">PERSENTASE USER SIPEDE</div>
                         <div className="card-body persen-body">
-                            {/* Top row: 2 large donuts */}
-                            <div className="donut-row-top">
+                            <div className="persen-layout">
                                 {/* Donut 1: Tercatat SIPEDE */}
-                                <div className="donut-wrapper">
-                                    <div className="donut-ring-container">
-                                        <svg viewBox="0 0 120 120" className="donut-ring">
-                                            <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="16" />
-                                            {totalTercatat > 0 && (100 - pctTercatat) > 0.1 && <path d={donutArc(60, 60, 50, Math.min(pctTercatat * 3.6, 359.9), 360)} fill="none" stroke="#f59e0b" strokeWidth="16" />}
-                                            {totalTercatat > 0 && pctTercatat > 0 && <path d={donutArc(60, 60, 50, 0, Math.min(pctTercatat * 3.6, 359.9))} fill="none" stroke="#c026d3" strokeWidth="16" />}
-                                        </svg>
-                                        <div className="donut-pct donut-pct-left">{Math.round(pctTercatat)}%</div>
-                                        {/* Label: Tidak Tercatat SIPEDE */}
-                                        <div className="donut-label-top-right">
-                                            <span className="donut-label-text">Tidak Tercatat<br />SIPEDE</span>
-                                            <span className="donut-label-pct orange">{totalTercatat > 0 ? (100 - Math.round(pctTercatat)) : 0}%</span>
+                                {(() => {
+                                    const pctP = Math.round(pctTercatat);
+                                    const pctO = totalTercatat > 0 ? 100 - pctP : 0;
+                                    const endP = Math.min(pctP * 3.6, 359.9);
+                                    const midP = arcMid(60, 60, 40, 0, endP);
+                                    const midO = arcMid(60, 60, 40, endP, 360);
+                                    const lblP = arcMid(60, 60, 85, 0, endP);
+                                    const lblO = arcMid(60, 60, 85, endP, 360);
+                                    return (
+                                        <div className="persen-donut-col">
+                                            <div className="persen-chart-wrap">
+                                                <svg viewBox="-30 -30 180 180" className="persen-svg">
+                                                    <circle cx="60" cy="60" r="40" fill="none" stroke="#f3f0ff" strokeWidth="18" />
+                                                    {totalTercatat > 0 && pctO > 0.1 && <path d={donutArc(60, 60, 40, endP, 360)} fill="none" stroke="#f59e0b" strokeWidth="18" strokeLinecap="butt" />}
+                                                    {totalTercatat > 0 && pctP > 0 && <path d={donutArc(60, 60, 40, 0, endP)} fill="none" stroke="#c026d3" strokeWidth="18" strokeLinecap="butt" />}
+                                                    {totalTercatat > 0 && pctP > 3 && <text x={midP.x} y={midP.y} textAnchor="middle" dominantBaseline="central" fontSize="10" fontWeight="800" fill="#fff">{pctP}%</text>}
+                                                    {totalTercatat > 0 && pctO > 3 && <text x={midO.x} y={midO.y} textAnchor="middle" dominantBaseline="central" fontSize="10" fontWeight="800" fill="#fff">{pctO}%</text>}
+                                                </svg>
+                                                {totalTercatat > 0 && pctO > 0 && (
+                                                    <div className="persen-lbl" style={{top: `${((lblO.y + 30) / 180) * 100}%`, left: `${((lblO.x + 30) / 180) * 100}%`}}>
+                                                        <span className="persen-lbl-text">Tidak Tercatat<br/>SIPEDE</span>
+                                                    </div>
+                                                )}
+                                                {totalTercatat > 0 && pctP > 0 && (
+                                                    <div className="persen-lbl" style={{top: `${((lblP.y + 30) / 180) * 100}%`, left: `${((lblP.x + 30) / 180) * 100}%`}}>
+                                                        <span className="persen-lbl-text">Tercatat<br/>SIPEDE</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="donut-name-bottom-left">Tercatat<br />SIPEDE</div>
-                                </div>
+                                    );
+                                })()}
 
                                 {/* Donut 2: Terdaftar E-sign */}
-                                <div className="donut-wrapper">
-                                    <div className="donut-ring-container">
-                                        <svg viewBox="0 0 120 120" className="donut-ring">
-                                            <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="16" />
-                                            {totalEsign > 0 && pctEsign > 0 && <path d={donutArc(60, 60, 50, Math.min((100 - pctEsign) * 3.6, 359.9), 360)} fill="none" stroke="#f59e0b" strokeWidth="16" />}
-                                            {totalEsign > 0 && (100 - pctEsign) > 0 && <path d={donutArc(60, 60, 50, 0, Math.min((100 - pctEsign) * 3.6, 359.9))} fill="none" stroke="#c026d3" strokeWidth="16" />}
-                                        </svg>
-                                        <div className="donut-pct donut-pct-left">{totalEsign > 0 ? Math.round(100 - pctEsign) : 0}%</div>
-                                        {/* Label: Tidak Terdaftar E-sign */}
-                                        <div className="donut-label-top-center">
-                                            <span className="donut-label-text">Tidak Terdaftar<br />E-sign</span>
+                                {(() => {
+                                    const pctNotE = totalEsign > 0 ? Math.round(100 - pctEsign) : 0;
+                                    const pctE = Math.round(pctEsign);
+                                    const endNotE = Math.min(pctNotE * 3.6, 359.9);
+                                    const midNotE = arcMid(60, 60, 40, 0, endNotE);
+                                    const midE = arcMid(60, 60, 40, endNotE, 360);
+                                    const lblNotE = arcMid(60, 60, 85, 0, endNotE);
+                                    const lblE = arcMid(60, 60, 85, endNotE, 360);
+                                    return (
+                                        <div className="persen-donut-col">
+                                            <div className="persen-chart-wrap">
+                                                <svg viewBox="-30 -30 180 180" className="persen-svg">
+                                                    <circle cx="60" cy="60" r="40" fill="none" stroke="#f3f0ff" strokeWidth="18" />
+                                                    {totalEsign > 0 && pctE > 0 && <path d={donutArc(60, 60, 40, endNotE, 360)} fill="none" stroke="#f59e0b" strokeWidth="18" strokeLinecap="butt" />}
+                                                    {totalEsign > 0 && pctNotE > 0 && <path d={donutArc(60, 60, 40, 0, endNotE)} fill="none" stroke="#c026d3" strokeWidth="18" strokeLinecap="butt" />}
+                                                    {totalEsign > 0 && pctNotE > 3 && <text x={midNotE.x} y={midNotE.y} textAnchor="middle" dominantBaseline="central" fontSize="10" fontWeight="800" fill="#fff">{pctNotE}%</text>}
+                                                    {totalEsign > 0 && pctE > 3 && <text x={midE.x} y={midE.y} textAnchor="middle" dominantBaseline="central" fontSize="10" fontWeight="800" fill="#fff">{pctE}%</text>}
+                                                </svg>
+                                                {totalEsign > 0 && pctNotE > 0 && (
+                                                    <div className="persen-lbl" style={{top: `${((lblNotE.y + 30) / 180) * 100}%`, left: `${((lblNotE.x + 30) / 180) * 100}%`}}>
+                                                        <span className="persen-lbl-text">Tidak Terdaftar<br/>E-sign</span>
+                                                    </div>
+                                                )}
+                                                {totalEsign > 0 && pctE > 0 && (
+                                                    <div className="persen-lbl" style={{top: `${((lblE.y + 30) / 180) * 100}%`, left: `${((lblE.x + 30) / 180) * 100}%`}}>
+                                                        <span className="persen-lbl-text">Terdaftar<br/>E-sign</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        {/* Label: Terdaftar E-sign */}
-                                        <div className="donut-label-right">
-                                            <span className="donut-label-text">Terdaftar<br />E-sign</span>
-                                            <span className="donut-label-pct orange">{Math.round(pctEsign)}%</span>
-                                        </div>
-                                    </div>
-                                    <div className="donut-name-bottom-left">&nbsp;</div>
-                                </div>
-                            </div>
+                                    );
+                                })()}
 
-                            {/* Bottom row: Status Aktif centered */}
-                            <div className="donut-row-bottom">
-                                <div className="donut-wrapper-sm">
-                                    <div className="donut-ring-container-sm">
-                                        <svg viewBox="0 0 120 120" className="donut-ring-sm">
-                                            <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="14" />
-                                            {totalAktif > 0 && pctAktif > 0 && <path d={donutArc(60, 60, 50, 0, Math.min(pctAktif * 3.6, 359.9))} fill="none" stroke="#c026d3" strokeWidth="14" />}
-                                            {totalAktif > 0 && (100 - pctAktif) > 0.5 && <path d={donutArc(60, 60, 50, Math.min(pctAktif * 3.6, 359.9), 360)} fill="none" stroke="#f59e0b" strokeWidth="14" />}
-                                        </svg>
-                                        <div className="donut-pct-center">
-                                            <strong>Status<br />Aktif<br />{Math.round(pctAktif)}%</strong>
+                                {/* Donut 3: Status Aktif */}
+                                {(() => {
+                                    const pctA = Math.round(pctAktif);
+                                    const pctNA = totalAktif > 0 ? 100 - pctA : 0;
+                                    const endA = Math.min(pctA * 3.6, 359.9);
+                                    return (
+                                        <div className="persen-donut-col">
+                                            <div className="persen-chart-wrap">
+                                                <svg viewBox="-30 -30 180 180" className="persen-svg">
+                                                    <circle cx="60" cy="60" r="40" fill="none" stroke="#f3f0ff" strokeWidth="18" />
+                                                    {totalAktif > 0 && pctA > 0 && <path d={donutArc(60, 60, 40, 0, endA)} fill="none" stroke="#c026d3" strokeWidth="18" strokeLinecap="butt" />}
+                                                    {totalAktif > 0 && pctNA > 0.5 && <path d={donutArc(60, 60, 40, endA, 360)} fill="none" stroke="#f59e0b" strokeWidth="18" strokeLinecap="butt" />}
+                                                    {/* Center text for Status Aktif */}
+                                                    <text x="60" y="52" textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight="700" fill="#1e1b4b">Status</text>
+                                                    <text x="60" y="64" textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight="700" fill="#1e1b4b">Aktif</text>
+                                                    <text x="60" y="78" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="800" fill="#1e1b4b">{pctA}%</text>
+                                                </svg>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>
@@ -1284,6 +1324,8 @@ export default function InsightTab() {
                 /* ===== Cards ===== */
                 .cards-row { display: flex; gap: 1rem; margin-bottom: 1rem; }
                 .top-row > .card { flex: 1; min-width: 0; }
+                .top-row > .card-total { flex: 0.7; }
+                .top-row > .card-persen { flex: 1.3; }
                 .bottom-row > .card { flex: 1; min-width: 0; }
                 .card {
                     background: #fff;
@@ -1292,6 +1334,9 @@ export default function InsightTab() {
                     overflow: hidden;
                     display: flex;
                     flex-direction: column;
+                }
+                .card-persen {
+                    overflow: visible;
                 }
                 .card-label {
                     padding: 0.6rem 1rem;
@@ -1330,78 +1375,54 @@ export default function InsightTab() {
                 .total-value { font-size: 1.75rem; font-weight: 800; color: #1e1b4b; margin-left: auto; }
 
                 /* ===== Card 2: Persentase ===== */
-                .persen-body { align-items: center; justify-content: center; gap: 0; padding: 0.5rem 0.5rem 0.35rem; }
-                .donut-row-top { display: flex; align-items: flex-start; justify-content: center; gap: 0; width: 100%; }
-                .donut-row-bottom { display: flex; justify-content: center; margin-top: 0.15rem; }
-                .donut-wrapper { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
-                .donut-wrapper-sm { display: flex; flex-direction: column; align-items: center; }
-                .donut-ring-container { position: relative; width: 110px; height: 110px; }
-                .donut-ring-container-sm { position: relative; width: 95px; height: 95px; }
-                .donut-ring { width: 100%; height: 100%; }
-                .donut-ring-sm { width: 100%; height: 100%; }
-                .donut-pct {
-                    position: absolute;
-                    font-size: 0.9rem;
-                    font-weight: 800;
-                    color: #333;
+                .persen-body {
+                    align-items: stretch;
+                    justify-content: center;
+                    padding: 0.5rem 0.5rem 0.35rem;
+                    overflow: visible;
                 }
-                .donut-pct-left { top: 55%; left: 18%; transform: translate(-50%, -50%); }
-                .donut-pct-center {
+                .persen-layout {
+                    display: flex;
+                    flex-direction: row;
+                    justify-content: center;
+                    align-items: flex-start;
+                    gap: 0.5rem;
+                    width: 100%;
+                    flex-wrap: nowrap;
+                }
+                .persen-donut-col {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    flex: 1;
+                    min-width: 0;
+                }
+                .persen-chart-wrap {
+                    position: relative;
+                    width: 100%;
+                    max-width: 200px;
+                    aspect-ratio: 1 / 1;
+                }
+                .persen-svg {
+                    display: block;
+                    width: 100%;
+                    height: 100%;
+                }
+                .persen-lbl {
                     position: absolute;
-                    top: 50%;
-                    left: 50%;
                     transform: translate(-50%, -50%);
-                    text-align: center;
-                    font-size: 0.8rem;
-                    font-weight: 800;
-                    color: #333;
-                    line-height: 1.25;
+                    pointer-events: none;
+                    white-space: nowrap;
+                    z-index: 2;
                 }
-                .donut-label-top-right {
-                    position: absolute;
-                    top: -8px;
-                    right: -55px;
-                    text-align: left;
-                    line-height: 1.2;
-                }
-                .donut-label-top-center {
-                    position: absolute;
-                    top: -12px;
-                    left: 25%;
-                    transform: translateX(-50%);
-                    text-align: center;
-                    line-height: 1.2;
-                }
-                .donut-label-right {
-                    position: absolute;
-                    top: 15%;
-                    right: -60px;
-                    text-align: left;
-                    line-height: 1.2;
-                }
-                .donut-label-text {
-                    font-size: 0.65rem;
+                .persen-lbl-text {
+                    font-size: 0.55rem;
                     font-weight: 600;
-                    color: #333;
+                    color: #374151;
+                    line-height: 1.15;
+                    text-align: center;
                     display: block;
                 }
-                .donut-label-pct {
-                    font-size: 0.75rem;
-                    font-weight: 700;
-                    display: block;
-                    margin-top: 1px;
-                }
-                .donut-label-pct.orange { color: #f59e0b; }
-                .donut-name-bottom-left {
-                    font-size: 0.75rem;
-                    font-weight: 700;
-                    color: #333;
-                    margin-top: 0.2rem;
-                    line-height: 1.2;
-                    align-self: flex-start;
-                    margin-left: 0.25rem;
-                }
-                .donut-sub { font-size: 0.65rem; color: #64748b; margin-top: 0; font-weight: 600; line-height: 1.2; }
 
                 /* ===== Card 3: Tren ===== */
                 .tren-body { align-items: center; }
