@@ -502,6 +502,13 @@ class SPPScraperService:
             self.status["isRunning"] = False
             self.status["dataCount"] = len(self.data)
             
+            # Calculate final elapsed time before stopping timer
+            if self.status["startTime"]:
+                start = datetime.fromisoformat(self.status["startTime"])
+                self.status["elapsedTime"] = int((datetime.now() - start).total_seconds())
+                # Stop timer by clearing startTime
+                self.status["startTime"] = None
+            
             # Log activity: scraping completed or error
             if self.status["error"]:
                 add_activity_log_sync("error", f"Scraping gagal: {self.status['error']}", "SPDP")

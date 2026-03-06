@@ -25,6 +25,7 @@ let scrapeStatus = {
     pagesScraped: 0,
     itemsScraped: 0,
     startTime: null,
+    elapsedTime: 0,
     error: null,
     currentUrl: null,
     tableInfo: null,
@@ -210,7 +211,7 @@ exports.getBrowserStatus = async (req, res) => {
                 dataCount: scrapedData.length,
                 elapsedTime: scrapeStatus.startTime
                     ? Math.round((Date.now() - scrapeStatus.startTime) / 1000)
-                    : 0
+                    : scrapeStatus.elapsedTime || 0
             }
         });
     } catch (error) {
@@ -309,6 +310,15 @@ exports.startScraping = async (req, res) => {
         scrapeStatus.isRunning = false;
         scrapeStatus.scrapingPhase = 'idle';
         scrapeStatus.scrapingMessage = '';
+        
+        // Calculate final elapsed time before stopping timer
+        if (scrapeStatus.startTime) {
+            const elapsedTime = Math.round((Date.now() - scrapeStatus.startTime) / 1000);
+            scrapeStatus.elapsedTime = elapsedTime;
+            // Stop timer by clearing startTime
+            scrapeStatus.startTime = null;
+        }
+        
         if (!result.success) {
             scrapeStatus.error = result.message;
             // Log activity: scraping error
@@ -323,6 +333,14 @@ exports.startScraping = async (req, res) => {
     } catch (error) {
         console.error('Scraping controller error:', error);
         scrapeStatus.isRunning = false;
+        
+        // Calculate final elapsed time on error
+        if (scrapeStatus.startTime) {
+            const elapsedTime = Math.round((Date.now() - scrapeStatus.startTime) / 1000);
+            scrapeStatus.elapsedTime = elapsedTime;
+            scrapeStatus.startTime = null;
+        }
+        
         scrapeStatus.error = error.message;
     }
 };
@@ -342,6 +360,7 @@ exports.closeBrowser = async (req, res) => {
             pagesScraped: 0,
             itemsScraped: 0,
             startTime: null,
+            elapsedTime: 0,
             error: null,
             currentUrl: null,
             tableInfo: null
