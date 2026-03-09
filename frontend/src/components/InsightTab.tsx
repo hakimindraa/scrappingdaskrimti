@@ -174,6 +174,9 @@ export default function InsightTab() {
 
     // --- Tab & Filter Toggle State ---
     const [activeTab, setActiveTab] = useState<'jenis' | 'asal'>('jenis');
+    const [detailMode, setDetailMode] = useState<'jenis' | 'asal'>('jenis');
+    const [detailSearch, setDetailSearch] = useState('');
+    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
     const [showJenisFilter, setShowJenisFilter] = useState(false);
     const [showAsalFilter, setShowAsalFilter] = useState(false);
 
@@ -931,6 +934,187 @@ export default function InsightTab() {
                     </div>
                 )}
             </div>
+
+            {/* ===== DETAIL PER KATEGORI SECTION ===== */}
+            {(hasUploadedJenis || hasUploadedAsal || hasUploadedKeluar) && (
+            <div className="pg-section" style={{marginTop: '1.5rem'}}>
+                <div className="pg-header">
+                    <div className="pg-header-left">
+                        <h2 className="pg-title">Detail Per Kategori</h2>
+                        <p className="pg-subtitle">Lihat semua baris data Excel yang dijabarkan per kategori untuk verifikasi</p>
+                    </div>
+                </div>
+
+                {/* Sub-tab toggle */}
+                <div className="detail-subtab-bar">
+                    <button className={`detail-subtab ${detailMode === 'jenis' ? 'detail-subtab-active' : ''}`} onClick={() => { setDetailMode('jenis'); setDetailSearch(''); setExpandedCategories(new Set()); }}>
+                        Jenis Surat
+                    </button>
+                    <button className={`detail-subtab ${detailMode === 'asal' ? 'detail-subtab-active' : ''}`} onClick={() => { setDetailMode('asal'); setDetailSearch(''); setExpandedCategories(new Set()); }}>
+                        Asal Surat
+                    </button>
+                </div>
+
+                {filteredRows.length === 0 && filteredRowsKeluar.length === 0 ? (
+                    <div className="pg-empty-state">
+                        <DocumentTextIcon className="pg-empty-state-icon" />
+                        <h3>Belum ada data</h3>
+                        <p>Upload Excel di atas untuk melihat detail data per kategori.</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Search */}
+                        <div className="detail-search-bar">
+                            <MagnifyingGlassIcon style={{ width: 16, height: 16, color: '#94a3b8' }} />
+                            <input
+                                type="text"
+                                className="detail-search-input"
+                                placeholder={detailMode === 'jenis' ? 'Cari jenis surat, asal, atau tanggal...' : 'Cari asal, jenis surat, atau tanggal...'}
+                                value={detailSearch}
+                                onChange={e => setDetailSearch(e.target.value)}
+                            />
+                            {detailSearch && (
+                                <button className="detail-search-clear" onClick={() => setDetailSearch('')}><XMarkIcon style={{ width: 14, height: 14 }} /></button>
+                            )}
+                        </div>
+                        {/* Expand/Collapse All */}
+                        <div className="detail-toolbar">
+                            <button className="detail-expand-btn" onClick={() => {
+                                if (detailMode === 'jenis') {
+                                    const all = new Set([...JENIS_KATEGORI_LIST, '__belum_jenis__']);
+                                    setExpandedCategories(prev => prev.size >= all.size ? new Set() : all);
+                                } else {
+                                    const all = new Set([...allKelompok, '__belum_asal__']);
+                                    setExpandedCategories(prev => prev.size >= all.size ? new Set() : all);
+                                }
+                            }}>
+                                {expandedCategories.size > 0 ? 'Tutup Semua' : 'Buka Semua'}
+                            </button>
+                            <span className="detail-total">
+                                Total: <b>{detailMode === 'jenis' ? (filteredRows.length + filteredRowsKeluar.length) : filteredRows.length}</b> baris
+                            </span>
+                        </div>
+
+                        {/* Accordion Sections */}
+                        {detailMode === 'jenis' ? (
+                            (() => {
+                                const grouped: Record<string, { jenis: string; asal: string; month: number; year: number; tipe: string }[]> = {};
+                                const searchLower = detailSearch.toLowerCase();
+                                filteredRows.forEach(r => {
+                                    const kat = jenisKategoriOverrides[r.jenis] || JENIS_KATEGORI_MAP[r.jenis] || '';
+                                    const key = kat || '__belum_jenis__';
+                                    const row = { jenis: r.jenis, asal: r.asal, month: r.month, year: r.year, tipe: 'Masuk' };
+                                    if (detailSearch && !r.jenis.toLowerCase().includes(searchLower) && !r.asal.toLowerCase().includes(searchLower) && !`${MONTH_LABELS[r.month - 1]} ${r.year}`.toLowerCase().includes(searchLower)) return;
+                                    if (!grouped[key]) grouped[key] = [];
+                                    grouped[key].push(row);
+                                });
+                                filteredRowsKeluar.forEach(r => {
+                                    const kat = jenisKategoriOverrides[r.jenis] || JENIS_KATEGORI_MAP[r.jenis] || '';
+                                    const key = kat || '__belum_jenis__';
+                                    const row = { jenis: r.jenis, asal: '-', month: r.month, year: r.year, tipe: 'Keluar' };
+                                    if (detailSearch && !r.jenis.toLowerCase().includes(searchLower) && !`${MONTH_LABELS[r.month - 1]} ${r.year}`.toLowerCase().includes(searchLower)) return;
+                                    if (!grouped[key]) grouped[key] = [];
+                                    grouped[key].push(row);
+                                });
+                                const orderedKeys = [
+                                    ...(grouped['__belum_jenis__'] ? ['__belum_jenis__'] : []),
+                                    ...JENIS_KATEGORI_LIST.filter(k => grouped[k]),
+                                ];
+                                if (orderedKeys.length === 0) return <div className="pg-empty">Tidak ada data yang cocok dengan pencarian.</div>;
+                                return orderedKeys.map(key => {
+                                    const rows = grouped[key];
+                                    const label = key === '__belum_jenis__' ? 'Belum Dikelompokkan' : key;
+                                    const isExpanded = expandedCategories.has(key);
+                                    return (
+                                        <div key={key} className="detail-accordion">
+                                            <button className={`detail-accordion-header ${key === '__belum_jenis__' ? 'detail-unmapped' : ''}`} onClick={() => setExpandedCategories(prev => {
+                                                const next = new Set(prev);
+                                                next.has(key) ? next.delete(key) : next.add(key);
+                                                return next;
+                                            })}>
+                                                <span className="detail-accordion-arrow">{isExpanded ? '▼' : '▶'}</span>
+                                                <span className="detail-accordion-label">{label}</span>
+                                                <span className="detail-accordion-count">{rows.length} baris</span>
+                                            </button>
+                                            {isExpanded && (
+                                                <div className="detail-accordion-body">
+                                                    <table className="pg-table">
+                                                        <thead><tr><th style={{width:40}}>No</th><th>Jenis Surat</th><th>Asal</th><th style={{width:110}}>Tanggal</th><th style={{width:80}}>Tipe</th></tr></thead>
+                                                        <tbody>
+                                                            {rows.map((r, i) => (
+                                                                <tr key={i}>
+                                                                    <td className="pg-td-count">{i + 1}</td>
+                                                                    <td className="pg-td-asal">{r.jenis}</td>
+                                                                    <td className="pg-td-asal">{r.asal}</td>
+                                                                    <td className="pg-td-count">{MONTH_LABELS[r.month - 1]} {r.year}</td>
+                                                                    <td style={{minWidth:60, textAlign:'center'}}><span className={`pg-tag ${r.tipe === 'Masuk' ? 'green' : 'red'}`} style={{whiteSpace:'nowrap'}}>{r.tipe}</span></td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                });
+                            })()
+                        ) : (
+                            (() => {
+                                const grouped: Record<string, { asal: string; jenis: string; month: number; year: number }[]> = {};
+                                const searchLower = detailSearch.toLowerCase();
+                                filteredRows.forEach(r => {
+                                    const kel = asalKelompokOverrides[r.asal] || ASAL_KELOMPOK_MAP[r.asal] || '';
+                                    const key = kel || '__belum_asal__';
+                                    if (detailSearch && !r.asal.toLowerCase().includes(searchLower) && !r.jenis.toLowerCase().includes(searchLower) && !`${MONTH_LABELS[r.month - 1]} ${r.year}`.toLowerCase().includes(searchLower)) return;
+                                    if (!grouped[key]) grouped[key] = [];
+                                    grouped[key].push({ asal: r.asal, jenis: r.jenis, month: r.month, year: r.year });
+                                });
+                                const orderedKeys = [
+                                    ...(grouped['__belum_asal__'] ? ['__belum_asal__'] : []),
+                                    ...allKelompok.filter(k => grouped[k]),
+                                ];
+                                if (orderedKeys.length === 0) return <div className="pg-empty">Tidak ada data yang cocok dengan pencarian.</div>;
+                                return orderedKeys.map(key => {
+                                    const rows = grouped[key];
+                                    const label = key === '__belum_asal__' ? 'Belum Dikelompokkan' : key;
+                                    const isExpanded = expandedCategories.has(key);
+                                    return (
+                                        <div key={key} className="detail-accordion">
+                                            <button className={`detail-accordion-header ${key === '__belum_asal__' ? 'detail-unmapped' : ''}`} onClick={() => setExpandedCategories(prev => {
+                                                const next = new Set(prev);
+                                                next.has(key) ? next.delete(key) : next.add(key);
+                                                return next;
+                                            })}>
+                                                <span className="detail-accordion-arrow">{isExpanded ? '▼' : '▶'}</span>
+                                                <span className="detail-accordion-label">{label}</span>
+                                                <span className="detail-accordion-count">{rows.length} baris</span>
+                                            </button>
+                                            {isExpanded && (
+                                                <div className="detail-accordion-body">
+                                                    <table className="pg-table">
+                                                        <thead><tr><th style={{width:40}}>No</th><th>Asal</th><th>Jenis Surat</th><th style={{width:110}}>Tanggal</th></tr></thead>
+                                                        <tbody>
+                                                            {rows.map((r, i) => (
+                                                                <tr key={i}>
+                                                                    <td className="pg-td-count">{i + 1}</td>
+                                                                    <td className="pg-td-asal">{r.asal}</td>
+                                                                    <td className="pg-td-asal">{r.jenis}</td>
+                                                                    <td className="pg-td-count">{MONTH_LABELS[r.month - 1]} {r.year}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                });
+                            })()
+                        )}
+                    </>
+                )}
+            </div>
+            )}
 
             {/* ===== ASSIGN JENIS MODAL ===== */}
             {assignJenis && (
@@ -2678,6 +2862,134 @@ export default function InsightTab() {
                         justify-content: center;
                     }
                 }
+                /* ===== Detail Per Kategori Tab ===== */
+                .detail-subtab-bar {
+                    display: flex;
+                    gap: 0;
+                    background: #f0fdf4;
+                    border-bottom: 2px solid #d1fae5;
+                }
+                .detail-subtab {
+                    flex: 1;
+                    padding: 0.65rem 1rem;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    color: #64748b;
+                    background: transparent;
+                    border: none;
+                    border-bottom: 3px solid transparent;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .detail-subtab:hover { color: #059669; background: #ecfdf5; }
+                .detail-subtab-active { color: #064e3b; border-bottom-color: #059669; background: #fff; }
+                .detail-search-bar {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0.6rem 1.25rem;
+                    background: #fafdfb;
+                    border-bottom: 1px solid #f0f5f3;
+                }
+                .detail-search-input {
+                    flex: 1;
+                    border: 1.5px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 0.5rem 0.75rem;
+                    font-size: 0.82rem;
+                    outline: none;
+                    background: #fff;
+                    transition: border-color 0.2s;
+                }
+                .detail-search-input:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.08); }
+                .detail-search-clear {
+                    background: #f1f0f6;
+                    border: none;
+                    border-radius: 6px;
+                    width: 28px;
+                    height: 28px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    color: #64748b;
+                }
+                .detail-search-clear:hover { background: #e2e1ec; }
+                .detail-toolbar {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 0.5rem 1.25rem;
+                    border-bottom: 1px solid #f0f5f3;
+                    background: #fafdfb;
+                }
+                .detail-expand-btn {
+                    padding: 0.4rem 0.85rem;
+                    background: #ecfdf5;
+                    border: 1px solid #d1fae5;
+                    border-radius: 8px;
+                    font-size: 0.78rem;
+                    font-weight: 600;
+                    color: #059669;
+                    cursor: pointer;
+                    transition: all 0.15s;
+                }
+                .detail-expand-btn:hover { background: #d1fae5; }
+                .detail-total {
+                    font-size: 0.8rem;
+                    color: #64748b;
+                    font-weight: 600;
+                }
+                .detail-accordion {
+                    border-bottom: 1px solid #f0f5f3;
+                }
+                .detail-accordion-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6rem;
+                    width: 100%;
+                    padding: 0.75rem 1.25rem;
+                    background: #f8faf9;
+                    border: none;
+                    cursor: pointer;
+                    transition: background 0.15s;
+                    text-align: left;
+                }
+                .detail-accordion-header:hover { background: #f0fdf4; }
+                .detail-accordion-header.detail-unmapped { background: #fffef5; }
+                .detail-accordion-header.detail-unmapped:hover { background: #fefce8; }
+                .detail-accordion-arrow {
+                    font-size: 0.7rem;
+                    color: #94a3b8;
+                    width: 16px;
+                    flex-shrink: 0;
+                }
+                .detail-accordion-label {
+                    flex: 1;
+                    font-size: 0.85rem;
+                    font-weight: 700;
+                    color: #1e1b4b;
+                }
+                .detail-accordion-count {
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    color: #059669;
+                    background: #dcfce7;
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 6px;
+                }
+                .detail-unmapped .detail-accordion-count {
+                    color: #991b1b;
+                    background: #fee2e2;
+                }
+                .detail-accordion-body {
+                    max-height: 400px;
+                    overflow-y: auto;
+                }
+                .detail-accordion-body::-webkit-scrollbar { width: 5px; }
+                .detail-accordion-body::-webkit-scrollbar-track { background: transparent; }
+                .detail-accordion-body::-webkit-scrollbar-thumb { background: #a7f3d0; border-radius: 3px; }
+
                 @media (max-width: 640px) {
                     .insight-page { padding: 0.75rem; }
                     .dash-title h1 { font-size: 1.2rem; padding: 0.4rem 1rem; }
