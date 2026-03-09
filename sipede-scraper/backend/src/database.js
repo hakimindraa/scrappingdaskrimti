@@ -52,6 +52,26 @@ async function initDatabase() {
         )
     `);
 
+    db.run(`
+        CREATE TABLE IF NOT EXISTS jenis_kategori_overrides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            jenis_surat TEXT NOT NULL UNIQUE,
+            kategori TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS asal_kelompok_overrides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asal TEXT NOT NULL UNIQUE,
+            kelompok TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
     db.run(`CREATE INDEX IF NOT EXISTS idx_scraped_data_source ON scraped_data(source)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at DESC)`);
 

@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const scraperRoutes = require('./routes/scraperRoutes');
+const overrideRoutes = require('./routes/overrideRoutes');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/scraper', scraperRoutes);
+app.use('/api/overrides', overrideRoutes);
 
 // 404 handler
 app.use((req, res) => {

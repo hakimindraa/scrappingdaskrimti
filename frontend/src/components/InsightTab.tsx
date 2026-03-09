@@ -39,6 +39,13 @@ interface RawRowKeluar {
 }
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function getOverrideApiBase(): string {
+    if (typeof window !== 'undefined') {
+        return `http://${window.location.hostname}:5000`;
+    }
+    return 'http://localhost:5000';
+}
 const MONTH_LABELS_FULL = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
 export default function InsightTab() {
@@ -60,6 +67,27 @@ export default function InsightTab() {
 
     // --- Year Override State ---
     const [tahunOverride, setTahunOverride] = useState<number | null>(null);
+
+    // --- Load overrides from database on mount ---
+    useEffect(() => {
+        const base = getOverrideApiBase();
+        fetch(`${base}/api/overrides/jenis`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.overrides && Object.keys(data.overrides).length > 0) {
+                    setJenisKategoriOverrides(data.overrides);
+                }
+            })
+            .catch(() => {});
+        fetch(`${base}/api/overrides/asal`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.overrides && Object.keys(data.overrides).length > 0) {
+                    setAsalKelompokOverrides(data.overrides);
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     // --- SIPEDE Manual Stats State ---
     const [sipedeStats, setSipedeStats] = useState(() => {
@@ -233,7 +261,16 @@ export default function InsightTab() {
 
     const handleAssignJenis = (kategori: string) => {
         if (!assignJenis) return;
-        setJenisKategoriOverrides(prev => ({ ...prev, [assignJenis.jenis]: kategori }));
+        const jenis = assignJenis.jenis;
+        setJenisKategoriOverrides(prev => {
+            const next = { ...prev, [jenis]: kategori };
+            fetch(`${getOverrideApiBase()}/api/overrides/jenis`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ overrides: { [jenis]: kategori } }),
+            }).catch(() => {});
+            return next;
+        });
         setAssignJenis(null);
     };
 
@@ -260,7 +297,16 @@ export default function InsightTab() {
 
     const handleAssign = (kelompok: string) => {
         if (!assignAsal) return;
-        setAsalKelompokOverrides(prev => ({ ...prev, [assignAsal.asal]: kelompok }));
+        const asal = assignAsal.asal;
+        setAsalKelompokOverrides(prev => {
+            const next = { ...prev, [asal]: kelompok };
+            fetch(`${getOverrideApiBase()}/api/overrides/asal`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ overrides: { [asal]: kelompok } }),
+            }).catch(() => {});
+            return next;
+        });
         if (!checkedGroups.has(kelompok)) toggleGroup(kelompok);
         setAssignAsal(null);
     };
@@ -271,7 +317,13 @@ export default function InsightTab() {
         setCustomGroups(prev => [...prev, { name, asalList: Array.from(newGroupSelected) }]);
         setAsalKelompokOverrides(prev => {
             const next = { ...prev };
-            newGroupSelected.forEach(asal => { next[asal] = name; });
+            const newOverrides: Record<string, string> = {};
+            newGroupSelected.forEach(asal => { next[asal] = name; newOverrides[asal] = name; });
+            fetch(`${getOverrideApiBase()}/api/overrides/asal`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ overrides: newOverrides }),
+            }).catch(() => {});
             return next;
         });
         setCheckedGroups(prev => new Set([...prev, name]));
@@ -372,9 +424,6 @@ export default function InsightTab() {
             if (Object.keys(jenisCounts).length > 0) setHasUploadedJenis(true);
             if (Object.keys(asalCounts).length > 0) setHasUploadedAsal(true);
 
-            // Reset overrides on new upload
-            setJenisKategoriOverrides({});
-            setAsalKelompokOverrides({});
             setTahunOverride(null);
 
             setUploadInfo(prev => ({

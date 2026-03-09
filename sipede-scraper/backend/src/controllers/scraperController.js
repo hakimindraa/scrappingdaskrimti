@@ -2,20 +2,23 @@ const scraperService = require('../services/scraperService');
 const { addLogInternal } = require('./activityController');
 const dataController = require('./dataController');
 const XLSX = require('xlsx');
+const db = require('../database');
 
 // Store for scraped data and status (also loaded from database on startup)
 let scrapedData = [];
 
-// Load persisted data on module load
-try {
-    const loaded = dataController.loadData('SIPEDE');
-    if (loaded.success && loaded.data.length > 0) {
-        scrapedData = loaded.data;
-        console.log(`[Controller] Loaded ${loaded.rowCount} persisted SIPEDE records from database`);
+// Load persisted data after database is ready
+db.ready().then(() => {
+    try {
+        const loaded = dataController.loadData('SIPEDE');
+        if (loaded.success && loaded.data.length > 0) {
+            scrapedData = loaded.data;
+            console.log(`[Controller] Loaded ${loaded.rowCount} persisted SIPEDE records from database`);
+        }
+    } catch (error) {
+        console.error('[Controller] Failed to load persisted data:', error);
     }
-} catch (error) {
-    console.error('[Controller] Failed to load persisted data:', error);
-}
+}).catch(() => {});
 
 let scrapeStatus = {
     browserOpen: false,
