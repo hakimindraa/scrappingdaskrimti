@@ -24,6 +24,10 @@ exports.saveJenisOverrides = (req, res) => {
 
         Object.entries(overrides).forEach(([jenisSurat, kategori]) => {
             if (typeof jenisSurat !== 'string' || typeof kategori !== 'string') return;
+            if (kategori === '') {
+                db.prepare('DELETE FROM jenis_kategori_overrides WHERE jenis_surat = ?').run(jenisSurat);
+                return;
+            }
             const existing = db.prepare('SELECT id FROM jenis_kategori_overrides WHERE jenis_surat = ?').get(jenisSurat);
             if (existing) {
                 db.prepare('UPDATE jenis_kategori_overrides SET kategori = ?, updated_at = CURRENT_TIMESTAMP WHERE jenis_surat = ?')
@@ -64,6 +68,10 @@ exports.saveAsalOverrides = (req, res) => {
 
         Object.entries(overrides).forEach(([asal, kelompok]) => {
             if (typeof asal !== 'string' || typeof kelompok !== 'string') return;
+            if (kelompok === '') {
+                db.prepare('DELETE FROM asal_kelompok_overrides WHERE asal = ?').run(asal);
+                return;
+            }
             const existing = db.prepare('SELECT id FROM asal_kelompok_overrides WHERE asal = ?').get(asal);
             if (existing) {
                 db.prepare('UPDATE asal_kelompok_overrides SET kelompok = ?, updated_at = CURRENT_TIMESTAMP WHERE asal = ?')

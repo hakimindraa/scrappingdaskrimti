@@ -19,6 +19,7 @@ import {
     ArrowDownIcon,
     CalendarIcon,
     PencilIcon,
+    TrashIcon,
     ArrowUpTrayIcon,
     ArrowDownTrayIcon,
     ChartPieIcon,
@@ -26,6 +27,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 interface RawRow {
+    rowId: string;
     jenis: string;
     asal: string;
     month: number;
@@ -33,6 +35,7 @@ interface RawRow {
 }
 
 interface RawRowKeluar {
+    rowId: string;
     jenis: string;
     month: number;
     year: number;
@@ -47,6 +50,7 @@ function getOverrideApiBase(): string {
     return 'http://localhost:5000';
 }
 const MONTH_LABELS_FULL = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const ROW_NONE = '__none__';
 
 export default function InsightTab() {
     const dashboardRef = useRef<HTMLDivElement>(null);
@@ -64,6 +68,26 @@ export default function InsightTab() {
     const [hasUploadedAsal, setHasUploadedAsal] = useState(false);
     const [rawRowsKeluar, setRawRowsKeluar] = useState<RawRowKeluar[]>([]);
     const [hasUploadedKeluar, setHasUploadedKeluar] = useState(false);
+
+    // --- Per-row Override State ---
+    const [jenisRowOverrides, setJenisRowOverrides] = useState<Record<string, string>>({});
+    const [asalRowOverrides, setAsalRowOverrides] = useState<Record<string, string>>({});
+    const [editingRowId, setEditingRowId] = useState<string | null>(null);
+    const [confirmHapus, setConfirmHapus] = useState<{ rowId: string; type: 'jenis' | 'asal'; label: string } | null>(null);
+
+    // Resolve kategori for a row, respecting row-level overrides with __none__ sentinel
+    const resolveJenisKat = (rowId: string, jenis: string): string => {
+        const rowOv = jenisRowOverrides[rowId];
+        if (rowOv === ROW_NONE) return '';
+        if (rowOv) return rowOv;
+        return jenisKategoriOverrides[jenis] || JENIS_KATEGORI_MAP[jenis] || '';
+    };
+    const resolveAsalKel = (rowId: string, asal: string): string => {
+        const rowOv = asalRowOverrides[rowId];
+        if (rowOv === ROW_NONE) return '';
+        if (rowOv) return rowOv;
+        return asalKelompokOverrides[asal] || ASAL_KELOMPOK_MAP[asal] || '';
+    };
 
     // --- Year Override State ---
     const [tahunOverride, setTahunOverride] = useState<number | null>(null);
@@ -204,42 +228,60 @@ export default function InsightTab() {
             .map(r => tahunOverride ? { ...r, year: tahunOverride } : r);
     }, [rawRowsKeluar, bulanDari, bulanSampai, tahunOverride]);
 
-    // --- Jenis Data (computed from filteredRows + filteredRowsKeluar) ---
+    // --- Jenis Data (computed from filteredRows + filteredRowsKeluar, with row-level overrides) ---
     const jenisData = useMemo((): JenisEntry[] => {
         if (filteredRows.length === 0 && filteredRowsKeluar.length === 0 && !hasUploadedJenis && !hasUploadedKeluar) return [];
+        // Key: "jenis\0kategori" to split jenis across categories when row overrides exist
         const masukCounts: Record<string, number> = {};
+        const keluarCounts: Record<string, number> = {};
+        const jenisKatMap: Record<string, string> = {};
         filteredRows.forEach(r => {
             if (!r.jenis) return;
-            masukCounts[r.jenis] = (masukCounts[r.jenis] || 0) + 1;
+            const kat = resolveJenisKat(r.rowId, r.jenis);
+            const compositeKey = `${r.jenis}\0${kat}`;
+            masukCounts[compositeKey] = (masukCounts[compositeKey] || 0) + 1;
+            jenisKatMap[compositeKey] = kat;
         });
-        const keluarCounts: Record<string, number> = {};
         filteredRowsKeluar.forEach(r => {
             if (!r.jenis) return;
-            keluarCounts[r.jenis] = (keluarCounts[r.jenis] || 0) + 1;
+            const kat = resolveJenisKat(r.rowId, r.jenis);
+            const compositeKey = `${r.jenis}\0${kat}`;
+            keluarCounts[compositeKey] = (keluarCounts[compositeKey] || 0) + 1;
+            jenisKatMap[compositeKey] = kat;
         });
-        const allJenis = new Set([...Object.keys(masukCounts), ...Object.keys(keluarCounts)]);
-        return Array.from(allJenis).map(jenis => ({
-            jenis,
-            countMasuk: masukCounts[jenis] || 0,
-            countKeluar: keluarCounts[jenis] || 0,
-            kategori: jenisKategoriOverrides[jenis] || JENIS_KATEGORI_MAP[jenis] || '',
-        }));
-    }, [filteredRows, filteredRowsKeluar, hasUploadedJenis, hasUploadedKeluar, jenisKategoriOverrides]);
+        const allKeys = new Set([...Object.keys(masukCounts), ...Object.keys(keluarCounts)]);
+        return Array.from(allKeys).map(compositeKey => {
+            const jenis = compositeKey.split('\0')[0];
+            return {
+                jenis,
+                countMasuk: masukCounts[compositeKey] || 0,
+                countKeluar: keluarCounts[compositeKey] || 0,
+                kategori: jenisKatMap[compositeKey] || '',
+            };
+        });
+    }, [filteredRows, filteredRowsKeluar, hasUploadedJenis, hasUploadedKeluar, jenisKategoriOverrides, jenisRowOverrides]);
 
-    // --- Asal Data (computed from filteredRows) ---
+    // --- Asal Data (computed from filteredRows, with row-level overrides) ---
     const asalData = useMemo((): AsalEntry[] => {
         if (filteredRows.length === 0 && !hasUploadedAsal) return [];
         const counts: Record<string, number> = {};
+        const asalKelMap: Record<string, string> = {};
         filteredRows.forEach(r => {
             if (!r.asal) return;
-            counts[r.asal] = (counts[r.asal] || 0) + 1;
+            const kel = resolveAsalKel(r.rowId, r.asal);
+            const compositeKey = `${r.asal}\0${kel}`;
+            counts[compositeKey] = (counts[compositeKey] || 0) + 1;
+            asalKelMap[compositeKey] = kel;
         });
-        return Object.entries(counts).map(([asal, count]) => ({
-            asal,
-            count,
-            kelompok: asalKelompokOverrides[asal] || ASAL_KELOMPOK_MAP[asal] || '',
-        }));
-    }, [filteredRows, hasUploadedAsal, asalKelompokOverrides]);
+        return Object.entries(counts).map(([compositeKey, count]) => {
+            const asal = compositeKey.split('\0')[0];
+            return {
+                asal,
+                count,
+                kelompok: asalKelMap[compositeKey] || '',
+            };
+        });
+    }, [filteredRows, hasUploadedAsal, asalKelompokOverrides, asalRowOverrides]);
 
     // --- Jenis Surat Computed ---
     const allJenisKategori = useMemo(() => [...JENIS_KATEGORI_LIST], []);
@@ -260,21 +302,59 @@ export default function InsightTab() {
         });
     };
 
-    const jenisGroupCount = (g: string) => jenisData.filter(d => d.kategori === g).length;
+    const jenisGroupCount = (g: string) => jenisData.filter(d => d.kategori === g).reduce((s, d) => s + d.countMasuk + d.countKeluar, 0);
 
     const handleAssignJenis = (kategori: string) => {
         if (!assignJenis) return;
-        const jenis = assignJenis.jenis;
-        setJenisKategoriOverrides(prev => {
-            const next = { ...prev, [jenis]: kategori };
-            fetch(`${getOverrideApiBase()}/api/overrides/jenis`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ overrides: { [jenis]: kategori } }),
-            }).catch(() => {});
-            return next;
-        });
+        if (editingRowId) {
+            // Per-row override from detail section
+            setJenisRowOverrides(prev => ({ ...prev, [editingRowId]: kategori }));
+            setEditingRowId(null);
+        } else {
+            // Per-name override from pengelompokan tab
+            const jenis = assignJenis.jenis;
+            setJenisKategoriOverrides(prev => {
+                const next = { ...prev, [jenis]: kategori };
+                fetch(`${getOverrideApiBase()}/api/overrides/jenis`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ overrides: { [jenis]: kategori } }),
+                }).catch(() => {});
+                return next;
+            });
+        }
         setAssignJenis(null);
+    };
+
+    // --- Detail Edit/Hapus Handlers ---
+    const handleDetailEditJenis = (rowId: string, jenis: string) => {
+        setEditingRowId(rowId);
+        setAssignJenis({ jenis, countMasuk: 0, countKeluar: 0, kategori: '' });
+        setActiveTab('jenis');
+    };
+
+    const handleDetailRemoveJenis = (rowId: string, label: string) => {
+        setConfirmHapus({ rowId, type: 'jenis', label });
+    };
+
+    const handleDetailEditAsal = (rowId: string, asal: string) => {
+        setEditingRowId(rowId);
+        setAssignAsal({ asal, count: 0, kelompok: '' });
+        setActiveTab('asal');
+    };
+
+    const handleDetailRemoveAsal = (rowId: string, label: string) => {
+        setConfirmHapus({ rowId, type: 'asal', label });
+    };
+
+    const confirmRemove = () => {
+        if (!confirmHapus) return;
+        if (confirmHapus.type === 'jenis') {
+            setJenisRowOverrides(prev => ({ ...prev, [confirmHapus.rowId]: ROW_NONE }));
+        } else {
+            setAsalRowOverrides(prev => ({ ...prev, [confirmHapus.rowId]: ROW_NONE }));
+        }
+        setConfirmHapus(null);
     };
 
     // --- Pengelompokan Asal Computed ---
@@ -296,20 +376,27 @@ export default function InsightTab() {
         });
     };
 
-    const groupCount = (g: string) => asalData.filter(d => d.kelompok === g).length;
+    const groupCount = (g: string) => asalData.filter(d => d.kelompok === g).reduce((s, d) => s + d.count, 0);
 
     const handleAssign = (kelompok: string) => {
         if (!assignAsal) return;
-        const asal = assignAsal.asal;
-        setAsalKelompokOverrides(prev => {
-            const next = { ...prev, [asal]: kelompok };
-            fetch(`${getOverrideApiBase()}/api/overrides/asal`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ overrides: { [asal]: kelompok } }),
-            }).catch(() => {});
-            return next;
-        });
+        if (editingRowId) {
+            // Per-row override from detail section
+            setAsalRowOverrides(prev => ({ ...prev, [editingRowId]: kelompok }));
+            setEditingRowId(null);
+        } else {
+            // Per-name override from pengelompokan tab
+            const asal = assignAsal.asal;
+            setAsalKelompokOverrides(prev => {
+                const next = { ...prev, [asal]: kelompok };
+                fetch(`${getOverrideApiBase()}/api/overrides/asal`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ overrides: { [asal]: kelompok } }),
+                }).catch(() => {});
+                return next;
+            });
+        }
         if (!checkedGroups.has(kelompok)) toggleGroup(kelompok);
         setAssignAsal(null);
     };
@@ -384,6 +471,7 @@ export default function InsightTab() {
                 const d = parseDate(tanggalRaw);
                 if (!d || d.month < 1 || d.month > 12) return;
                 parsed.push({ 
+                    rowId: `m-${parsed.length}`,
                     jenis, 
                     asal, 
                     month: d.month, 
@@ -413,6 +501,7 @@ export default function InsightTab() {
 
             // Store raw rows & set filter range
             setRawRows(parsed);
+            setJenisRowOverrides({});
             if (minMonth <= maxMonth) {
                 setAvailableRange(prev => prev
                     ? { min: Math.min(prev.min, minMonth), max: Math.max(prev.max, maxMonth) }
@@ -464,7 +553,7 @@ export default function InsightTab() {
                 const jenis = (row['Jenis Surat'] || '').toString().trim().toUpperCase();
                 const d = parseDate(row['Tanggal']);
                 if (!d || d.month < 1 || d.month > 12) return;
-                parsed.push({ jenis, month: d.month, year: d.year });
+                parsed.push({ rowId: `k-${parsed.length}`, jenis, month: d.month, year: d.year });
                 if (d.month < minM) minM = d.month;
                 if (d.month > maxM) maxM = d.month;
                 yearsFound.add(d.year);
@@ -472,6 +561,12 @@ export default function InsightTab() {
 
             setRawRowsKeluar(parsed);
             setHasUploadedKeluar(true);
+            setJenisRowOverrides(prev => {
+                // Clear only keluar row overrides
+                const next: Record<string, string> = {};
+                Object.entries(prev).forEach(([k, v]) => { if (k.startsWith('m-')) next[k] = v; });
+                return next;
+            });
 
             // Merge filter range
             if (minM <= maxM) {
@@ -554,10 +649,13 @@ export default function InsightTab() {
         if (!hasUploadedJenis && !hasUploadedKeluar) return [] as { label: string; masuk: number; keluar: number }[];
         const masukCounts: Record<string, number> = {};
         const keluarCounts: Record<string, number> = {};
-        jenisData.forEach(d => {
-            const key = d.kategori || 'Lainnya';
-            masukCounts[key] = (masukCounts[key] || 0) + d.countMasuk;
-            keluarCounts[key] = (keluarCounts[key] || 0) + d.countKeluar;
+        filteredRows.forEach(r => {
+            const key = resolveJenisKat(r.rowId, r.jenis) || 'Lainnya';
+            masukCounts[key] = (masukCounts[key] || 0) + 1;
+        });
+        filteredRowsKeluar.forEach(r => {
+            const key = resolveJenisKat(r.rowId, r.jenis) || 'Lainnya';
+            keluarCounts[key] = (keluarCounts[key] || 0) + 1;
         });
         const allKat = new Set([...Object.keys(masukCounts), ...Object.keys(keluarCounts)]);
         return Array.from(allKat).map(label => ({
@@ -565,24 +663,24 @@ export default function InsightTab() {
             masuk: masukCounts[label] || 0,
             keluar: keluarCounts[label] || 0,
         })).sort((a, b) => (b.masuk + b.keluar) - (a.masuk + a.keluar));
-    }, [hasUploadedJenis, hasUploadedKeluar, jenisData]);
+    }, [hasUploadedJenis, hasUploadedKeluar, filteredRows, filteredRowsKeluar, jenisKategoriOverrides, jenisRowOverrides]);
 
     const suratKeluar = useMemo(() => {
         return filteredRowsKeluar.length;
     }, [filteredRowsKeluar]);
 
-    // Asal Surat: computed from asalData
+    // Asal Surat: computed from filtered rows with row-level overrides
     const asalSurat = useMemo(() => {
         if (!hasUploadedAsal) return [] as { label: string; value: number }[];
         const kelompokCounts: Record<string, number> = {};
-        asalData.forEach(d => {
-            const key = d.kelompok || 'Lainnya';
-            kelompokCounts[key] = (kelompokCounts[key] || 0) + d.count;
+        filteredRows.forEach(r => {
+            const key = resolveAsalKel(r.rowId, r.asal) || 'Lainnya';
+            kelompokCounts[key] = (kelompokCounts[key] || 0) + 1;
         });
         return Object.entries(kelompokCounts)
             .map(([label, value]) => ({ label, value }))
             .sort((a, b) => b.value - a.value);
-    }, [hasUploadedAsal, asalData]);
+    }, [hasUploadedAsal, filteredRows, asalKelompokOverrides, asalRowOverrides]);
 
     // --- Donut Chart Helper ---
     const donutArc = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
@@ -998,20 +1096,20 @@ export default function InsightTab() {
                         {/* Accordion Sections */}
                         {detailMode === 'jenis' ? (
                             (() => {
-                                const grouped: Record<string, { jenis: string; asal: string; month: number; year: number; tipe: string }[]> = {};
+                                const grouped: Record<string, { rowId: string; jenis: string; asal: string; month: number; year: number; tipe: string }[]> = {};
                                 const searchLower = detailSearch.toLowerCase();
                                 filteredRows.forEach(r => {
-                                    const kat = jenisKategoriOverrides[r.jenis] || JENIS_KATEGORI_MAP[r.jenis] || '';
+                                    const kat = resolveJenisKat(r.rowId, r.jenis);
                                     const key = kat || '__belum_jenis__';
-                                    const row = { jenis: r.jenis, asal: r.asal, month: r.month, year: r.year, tipe: 'Masuk' };
+                                    const row = { rowId: r.rowId, jenis: r.jenis, asal: r.asal, month: r.month, year: r.year, tipe: 'Masuk' };
                                     if (detailSearch && !r.jenis.toLowerCase().includes(searchLower) && !r.asal.toLowerCase().includes(searchLower) && !`${MONTH_LABELS[r.month - 1]} ${r.year}`.toLowerCase().includes(searchLower)) return;
                                     if (!grouped[key]) grouped[key] = [];
                                     grouped[key].push(row);
                                 });
                                 filteredRowsKeluar.forEach(r => {
-                                    const kat = jenisKategoriOverrides[r.jenis] || JENIS_KATEGORI_MAP[r.jenis] || '';
+                                    const kat = resolveJenisKat(r.rowId, r.jenis);
                                     const key = kat || '__belum_jenis__';
-                                    const row = { jenis: r.jenis, asal: '-', month: r.month, year: r.year, tipe: 'Keluar' };
+                                    const row = { rowId: r.rowId, jenis: r.jenis, asal: '-', month: r.month, year: r.year, tipe: 'Keluar' };
                                     if (detailSearch && !r.jenis.toLowerCase().includes(searchLower) && !`${MONTH_LABELS[r.month - 1]} ${r.year}`.toLowerCase().includes(searchLower)) return;
                                     if (!grouped[key]) grouped[key] = [];
                                     grouped[key].push(row);
@@ -1039,7 +1137,7 @@ export default function InsightTab() {
                                             {isExpanded && (
                                                 <div className="detail-accordion-body">
                                                     <table className="pg-table">
-                                                        <thead><tr><th style={{width:40}}>No</th><th>Jenis Surat</th><th>Asal</th><th style={{width:110}}>Tanggal</th><th style={{width:80}}>Tipe</th></tr></thead>
+                                                        <thead><tr><th style={{width:40}}>No</th><th>Jenis Surat</th><th>Asal</th><th style={{width:110}}>Tanggal</th><th style={{width:80}}>Tipe</th><th style={{width:90}}>Aksi</th></tr></thead>
                                                         <tbody>
                                                             {rows.map((r, i) => (
                                                                 <tr key={i}>
@@ -1048,6 +1146,10 @@ export default function InsightTab() {
                                                                     <td className="pg-td-asal">{r.asal}</td>
                                                                     <td className="pg-td-count">{MONTH_LABELS[r.month - 1]} {r.year}</td>
                                                                     <td style={{minWidth:60, textAlign:'center'}}><span className={`pg-tag ${r.tipe === 'Masuk' ? 'green' : 'red'}`} style={{whiteSpace:'nowrap'}}>{r.tipe}</span></td>
+                                                                    <td className="detail-aksi-cell">
+                                                                        <button className="detail-aksi-btn edit" title="Edit kategori" onClick={() => handleDetailEditJenis(r.rowId, r.jenis)}><PencilIcon style={{width:14,height:14}} /></button>
+                                                                        <button className="detail-aksi-btn hapus" title="Hapus dari kategori" onClick={() => handleDetailRemoveJenis(r.rowId, r.jenis)}><TrashIcon style={{width:14,height:14}} /></button>
+                                                                    </td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>
@@ -1060,14 +1162,14 @@ export default function InsightTab() {
                             })()
                         ) : (
                             (() => {
-                                const grouped: Record<string, { asal: string; jenis: string; month: number; year: number }[]> = {};
+                                const grouped: Record<string, { rowId: string; asal: string; jenis: string; month: number; year: number }[]> = {};
                                 const searchLower = detailSearch.toLowerCase();
                                 filteredRows.forEach(r => {
-                                    const kel = asalKelompokOverrides[r.asal] || ASAL_KELOMPOK_MAP[r.asal] || '';
+                                    const kel = resolveAsalKel(r.rowId, r.asal);
                                     const key = kel || '__belum_asal__';
                                     if (detailSearch && !r.asal.toLowerCase().includes(searchLower) && !r.jenis.toLowerCase().includes(searchLower) && !`${MONTH_LABELS[r.month - 1]} ${r.year}`.toLowerCase().includes(searchLower)) return;
                                     if (!grouped[key]) grouped[key] = [];
-                                    grouped[key].push({ asal: r.asal, jenis: r.jenis, month: r.month, year: r.year });
+                                    grouped[key].push({ rowId: r.rowId, asal: r.asal, jenis: r.jenis, month: r.month, year: r.year });
                                 });
                                 const orderedKeys = [
                                     ...(grouped['__belum_asal__'] ? ['__belum_asal__'] : []),
@@ -1092,7 +1194,7 @@ export default function InsightTab() {
                                             {isExpanded && (
                                                 <div className="detail-accordion-body">
                                                     <table className="pg-table">
-                                                        <thead><tr><th style={{width:40}}>No</th><th>Asal</th><th>Jenis Surat</th><th style={{width:110}}>Tanggal</th></tr></thead>
+                                                        <thead><tr><th style={{width:40}}>No</th><th>Asal</th><th>Jenis Surat</th><th style={{width:110}}>Tanggal</th><th style={{width:90}}>Aksi</th></tr></thead>
                                                         <tbody>
                                                             {rows.map((r, i) => (
                                                                 <tr key={i}>
@@ -1100,6 +1202,10 @@ export default function InsightTab() {
                                                                     <td className="pg-td-asal">{r.asal}</td>
                                                                     <td className="pg-td-asal">{r.jenis}</td>
                                                                     <td className="pg-td-count">{MONTH_LABELS[r.month - 1]} {r.year}</td>
+                                                                    <td className="detail-aksi-cell">
+                                                                        <button className="detail-aksi-btn edit" title="Edit kelompok" onClick={() => handleDetailEditAsal(r.rowId, r.asal)}><PencilIcon style={{width:14,height:14}} /></button>
+                                                                        <button className="detail-aksi-btn hapus" title="Hapus dari kelompok" onClick={() => handleDetailRemoveAsal(r.rowId, r.asal)}><TrashIcon style={{width:14,height:14}} /></button>
+                                                                    </td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>
@@ -1114,6 +1220,26 @@ export default function InsightTab() {
                     </>
                 )}
             </div>
+            )}
+
+            {/* ===== CONFIRM HAPUS MODAL ===== */}
+            {confirmHapus && (
+                <div className="pg-overlay" onClick={() => setConfirmHapus(null)}>
+                    <div className="pg-modal" onClick={e => e.stopPropagation()} style={{maxWidth: 400}}>
+                        <div className="pg-modal-header">
+                            <h3>Konfirmasi Hapus</h3>
+                            <button className="pg-modal-close" onClick={() => setConfirmHapus(null)}><XMarkIcon style={{width:18,height:18}} /></button>
+                        </div>
+                        <div style={{padding:'1rem 1.5rem', fontSize:'0.9rem', color:'#334155'}}>
+                            Apakah Anda yakin ingin menghapus <b>{confirmHapus.label}</b> dari {confirmHapus.type === 'jenis' ? 'kategori' : 'kelompok'} ini?
+                            <br/><span style={{color:'#64748b', fontSize:'0.82rem'}}>Surat akan dipindahkan ke &quot;Belum Dikelompokkan&quot;.</span>
+                        </div>
+                        <div style={{display:'flex', gap:'0.75rem', justifyContent:'flex-end', padding:'0.75rem 1.5rem 1.25rem'}}>
+                            <button className="pg-modal-cancel" onClick={() => setConfirmHapus(null)}>Batal</button>
+                            <button className="pg-modal-confirm-hapus" onClick={confirmRemove}>Ya, Hapus</button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* ===== ASSIGN JENIS MODAL ===== */}
@@ -2989,6 +3115,66 @@ export default function InsightTab() {
                 .detail-accordion-body::-webkit-scrollbar { width: 5px; }
                 .detail-accordion-body::-webkit-scrollbar-track { background: transparent; }
                 .detail-accordion-body::-webkit-scrollbar-thumb { background: #a7f3d0; border-radius: 3px; }
+                .detail-aksi-cell {
+                    display: flex;
+                    gap: 0.35rem;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .detail-aksi-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 8px;
+                    border: 1px solid transparent;
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    background: #f8faf9;
+                }
+                .detail-aksi-btn.edit {
+                    color: #059669;
+                    border-color: #d1fae5;
+                }
+                .detail-aksi-btn.edit:hover {
+                    background: #ecfdf5;
+                    color: #047857;
+                    box-shadow: 0 2px 6px rgba(5,150,105,0.15);
+                }
+                .detail-aksi-btn.hapus {
+                    color: #dc2626;
+                    border-color: #fecaca;
+                }
+                .detail-aksi-btn.hapus:hover {
+                    background: #fef2f2;
+                    color: #b91c1c;
+                    box-shadow: 0 2px 6px rgba(220,38,38,0.15);
+                }
+                .pg-modal-cancel {
+                    padding: 0.5rem 1.25rem;
+                    border-radius: 8px;
+                    border: 1px solid #d1d5db;
+                    background: #fff;
+                    color: #374151;
+                    font-size: 0.85rem;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: all 0.15s;
+                }
+                .pg-modal-cancel:hover { background: #f3f4f6; }
+                .pg-modal-confirm-hapus {
+                    padding: 0.5rem 1.25rem;
+                    border-radius: 8px;
+                    border: 1px solid #dc2626;
+                    background: #dc2626;
+                    color: #fff;
+                    font-size: 0.85rem;
+                    cursor: pointer;
+                    font-weight: 600;
+                    transition: all 0.15s;
+                }
+                .pg-modal-confirm-hapus:hover { background: #b91c1c; border-color: #b91c1c; }
 
                 @media (max-width: 640px) {
                     .insight-page { padding: 0.75rem; }
