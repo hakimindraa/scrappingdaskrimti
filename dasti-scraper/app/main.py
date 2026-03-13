@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import scraper
+from app.routers import scraper, insight
 import os
 from dotenv import load_dotenv
 
@@ -24,6 +24,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(scraper.router, prefix="/api/scraper", tags=["scraper"])
+app.include_router(insight.router, prefix="/api/insight", tags=["insight"])
 
 
 @app.get("/health")

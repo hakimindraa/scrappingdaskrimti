@@ -45,9 +45,9 @@ const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 
 function getOverrideApiBase(): string {
     if (typeof window !== 'undefined') {
-        return `http://${window.location.hostname}:5000`;
+        return `http://${window.location.hostname}:5002`;
     }
-    return 'http://localhost:5000';
+    return 'http://localhost:5002';
 }
 const MONTH_LABELS_FULL = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const ROW_NONE = '__none__';
@@ -94,6 +94,12 @@ export default function InsightTab() {
     const [yearRowOverrides, setYearRowOverrides] = useState<Record<string, number>>({});
     const [monthRowOverrides, setMonthRowOverrides] = useState<Record<string, number>>({});
 
+    // --- Save/Load State ---
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [isLoadingFromDb, setIsLoadingFromDb] = useState(false);
+
     // --- Load overrides from database on mount ---
     useEffect(() => {
         const base = getOverrideApiBase();
@@ -115,6 +121,10 @@ export default function InsightTab() {
             .catch(() => {});
     }, []);
 
+    // --- Load saved data from database on mount (overrides only, not surat data) ---
+    // Surat data intentionally not auto-loaded — user uploads Excel fresh each time
+    // Mappings are loaded so new uploads auto-categorize
+
     // --- SIPEDE Manual Stats State ---
     const [sipedeStats, setSipedeStats] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -129,7 +139,7 @@ export default function InsightTab() {
     const [showSipedeForm, setShowSipedeForm] = useState(true);
 
     // --- Computed donut percentages ---
-    const totalAktif = sipedeStats.statusAktif + sipedeStats.statusTidakAktif;
+    const totalAktif = sipedeStats.statusAktif;
     const pctAktif = useMemo(() => {
         return totalAktif > 0 ? (sipedeStats.statusAktif / totalAktif) * 100 : 0;
     }, [sipedeStats.statusAktif, totalAktif]);
@@ -159,30 +169,25 @@ export default function InsightTab() {
     // --- Validation for SIPEDE Stats ---
     const sipedeValidation = useMemo(() => {
         const errors: string[] = [];
-        
+
         // Check if totals are consistent
-        const totalAktifCalc = sipedeStats.statusAktif + sipedeStats.statusTidakAktif;
         const totalTercatatCalc = sipedeStats.tercatatSipede + sipedeStats.tidakTercatatSipede;
         const totalEsignCalc = sipedeStats.terdaftarEsign + sipedeStats.tidakTerdaftarEsign;
-        
-        // All totals should match
-        if (totalAktifCalc !== totalTercatatCalc) {
-            errors.push(`Total Status (${totalAktifCalc}) tidak sama dengan Total Tercatat (${totalTercatatCalc})`);
+
+        // Tercatat and E-sign totals should match
+        if (totalTercatatCalc !== totalEsignCalc) {
+            errors.push(`Total Tercatat (${totalTercatatCalc}) tidak sama dengan Total E-sign (${totalEsignCalc})`);
         }
-        
-        if (totalAktifCalc !== totalEsignCalc) {
-            errors.push(`Total Status (${totalAktifCalc}) tidak sama dengan Total E-sign (${totalEsignCalc})`);
-        }
-        
+
         // Check if any total is 0
-        if (totalAktifCalc === 0) {
-            errors.push('Total user tidak boleh 0');
+        if (sipedeStats.statusAktif === 0) {
+            errors.push('Status Aktif tidak boleh 0');
         }
         
         return {
             isValid: errors.length === 0,
             errors,
-            totalAktif: totalAktifCalc,
+            totalAktif: sipedeStats.statusAktif,
             totalTercatat: totalTercatatCalc,
             totalEsign: totalEsignCalc
         };
@@ -755,6 +760,117 @@ export default function InsightTab() {
         }
     };
 
+    // --- Save/Load Functions ---
+    const handleSaveToDatabase = async () => {
+        setIsSaving(true);
+        setSaveError(null);
+        setSaveSuccess(false);
+
+        try {
+            const base = getOverrideApiBase();
+
+            // Save global overrides first (jenis→kategori and asal→kelompok mappings)
+            await Promise.all([
+                fetch(`${base}/api/overrides/jenis`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ overrides: jenisKategoriOverrides }),
+                }),
+                fetch(`${base}/api/overrides/asal`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ overrides: asalKelompokOverrides }),
+                }),
+            ]);
+
+            // Save data rows
+            const response = await fetch(`${base}/api/insight/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    suratMasuk: filteredRows,
+                    suratKeluar: filteredRowsKeluar,
+                    jenisRowOverrides,
+                    asalRowOverrides,
+                    yearRowOverrides,
+                    monthRowOverrides
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setSaveSuccess(true);
+                setTimeout(() => setSaveSuccess(false), 3000);
+            } else {
+                setSaveError(result.message || 'Gagal menyimpan data');
+            }
+        } catch (error) {
+            setSaveError('Terjadi kesalahan saat menyimpan data');
+            console.error('Save error:', error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleClearDatabase = async () => {
+        if (!confirm('Apakah Anda yakin ingin menghapus semua data dari database? Tindakan ini tidak dapat dibatalkan.')) {
+            return;
+        }
+        
+        try {
+            const base = getOverrideApiBase();
+            const response = await fetch(`${base}/api/insight/clear`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Reset all state
+                setRawRows([]);
+                setRawRowsKeluar([]);
+                setJenisRowOverrides({});
+                setAsalRowOverrides({});
+                setYearRowOverrides({});
+                setMonthRowOverrides({});
+                setHasUploadedJenis(false);
+                setHasUploadedAsal(false);
+                setHasUploadedKeluar(false);
+                setAvailableRange(null);
+                setDataYear(null);
+                setBulanDari(1);
+                setBulanSampai(12);
+                setFilterTahun(null);
+                
+                alert('Data berhasil dihapus dari database');
+            } else {
+                alert('Gagal menghapus data: ' + (result.message || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Terjadi kesalahan saat menghapus data');
+            console.error('Clear error:', error);
+        }
+    };
+
+    // Check if all data is grouped (ready to save)
+    const isReadyToSave = useMemo(() => {
+        if (filteredRows.length === 0 && filteredRowsKeluar.length === 0) return false;
+
+        // Check filtered surat masuk rows have jenis categorized and asal grouped
+        for (const row of filteredRows) {
+            if (row.jenis && !resolveJenisKat(row.rowId, row.jenis)) return false;
+            if (row.asal && !resolveAsalKel(row.rowId, row.asal)) return false;
+        }
+
+        // Check filtered surat keluar rows have jenis categorized
+        for (const row of filteredRowsKeluar) {
+            if (row.jenis && !resolveJenisKat(row.rowId, row.jenis)) return false;
+        }
+
+        return true;
+    }, [filteredRows, filteredRowsKeluar, jenisKategoriOverrides, asalKelompokOverrides, jenisRowOverrides, asalRowOverrides]);
+
     return (
         <div className="insight-wrapper">
             {/* ===== PENGELOMPOKAN SECTION ===== */}
@@ -775,8 +891,60 @@ export default function InsightTab() {
                             Surat Keluar (.xlsx)
                             <input ref={fileInputRefKeluar} type="file" accept=".xlsx,.xls" hidden onChange={handleExcelUploadKeluar} />
                         </label>
+                        {(hasUploadedJenis || hasUploadedAsal || hasUploadedKeluar) && (
+                            <>
+                                <button 
+                                    className={`pg-save-db-btn ${isReadyToSave ? 'ready' : 'not-ready'}`}
+                                    onClick={handleSaveToDatabase}
+                                    disabled={!isReadyToSave || isSaving}
+                                    title={isReadyToSave ? 'Simpan semua data ke database' : 'Kelompokkan semua data terlebih dahulu'}
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <ArrowPathIcon className="hi-icon spinning" />
+                                            Menyimpan...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircleIcon className="hi-icon" />
+                                            Simpan ke Database
+                                        </>
+                                    )}
+                                </button>
+                                <button 
+                                    className="pg-clear-db-btn"
+                                    onClick={handleClearDatabase}
+                                    title="Hapus semua data dari database"
+                                >
+                                    <TrashIcon className="hi-icon" />
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
+
+                {/* Save Success/Error Notification */}
+                {saveSuccess && (
+                    <div className="save-notif success">
+                        <CheckCircleIcon className="hi-icon" />
+                        <span>Data berhasil disimpan ke database!</span>
+                    </div>
+                )}
+                {saveError && (
+                    <div className="save-notif error">
+                        <XCircleIcon className="hi-icon" />
+                        <span>{saveError}</span>
+                        <button onClick={() => setSaveError(null)}><XMarkIcon className="hi-icon" /></button>
+                    </div>
+                )}
+                
+                {/* Loading from Database */}
+                {isLoadingFromDb && (
+                    <div className="loading-notif">
+                        <ArrowPathIcon className="hi-icon spinning" />
+                        <span>Memuat data dari database...</span>
+                    </div>
+                )}
 
                 {/* Step Guide for new users */}
                 {!hasUploadedJenis && !hasUploadedAsal && !hasUploadedKeluar && (
@@ -1345,7 +1513,7 @@ export default function InsightTab() {
                                 <input
                                     type="number"
                                     min="0"
-                                    className={`sipede-field-input ${!sipedeValidation.isValid ? 'sipede-field-error' : ''}`}
+                                    className="sipede-field-input"
                                     value={sipedeStats.statusTidakAktif}
                                     onChange={e => updateSipedeStat('statusTidakAktif', e.target.value)}
                                 />
@@ -3238,6 +3406,128 @@ export default function InsightTab() {
                     transition: all 0.15s;
                 }
                 .pg-modal-confirm-hapus:hover { background: #b91c1c; border-color: #b91c1c; }
+
+                /* Save to Database Button */
+                .pg-save-db-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0.55rem 1.1rem;
+                    border-radius: 12px;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    border: 1.5px solid transparent;
+                    white-space: nowrap;
+                }
+                .pg-save-db-btn .hi-icon { width: 1rem; height: 1rem; }
+                .pg-save-db-btn.ready {
+                    background: rgba(16, 185, 129, 0.25);
+                    border-color: rgba(16, 185, 129, 0.5);
+                    color: #fff;
+                }
+                .pg-save-db-btn.ready:hover {
+                    background: rgba(16, 185, 129, 0.45);
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+                }
+                .pg-save-db-btn.not-ready {
+                    background: rgba(255, 255, 255, 0.06);
+                    border-color: rgba(255, 255, 255, 0.1);
+                    color: rgba(255, 255, 255, 0.35);
+                    cursor: not-allowed;
+                }
+                .pg-save-db-btn:disabled {
+                    opacity: 0.7;
+                    cursor: not-allowed;
+                    transform: none !important;
+                    box-shadow: none !important;
+                }
+
+                /* Clear Database Button */
+                .pg-clear-db-btn {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 10px;
+                    background: rgba(239, 68, 68, 0.15);
+                    border: 1.5px solid rgba(239, 68, 68, 0.3);
+                    color: #f87171;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .pg-clear-db-btn .hi-icon { width: 0.9rem; height: 0.9rem; }
+                .pg-clear-db-btn:hover {
+                    background: rgba(239, 68, 68, 0.35);
+                    border-color: rgba(239, 68, 68, 0.5);
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+                }
+
+                /* Save Notification */
+                .save-notif {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6rem;
+                    padding: 0.75rem 1.15rem;
+                    border-radius: 12px;
+                    font-size: 0.82rem;
+                    font-weight: 500;
+                    animation: pgSlideUp 0.3s ease;
+                }
+                .save-notif .hi-icon { width: 1.1rem; height: 1.1rem; flex-shrink: 0; }
+                .save-notif.success {
+                    background: rgba(16, 185, 129, 0.12);
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                    color: #34d399;
+                }
+                .save-notif.error {
+                    background: rgba(239, 68, 68, 0.12);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    color: #f87171;
+                }
+                .save-notif.error button {
+                    background: none;
+                    border: none;
+                    color: #f87171;
+                    cursor: pointer;
+                    padding: 0.15rem;
+                    margin-left: auto;
+                    display: flex;
+                    align-items: center;
+                    opacity: 0.7;
+                    transition: opacity 0.15s;
+                }
+                .save-notif.error button:hover { opacity: 1; }
+                .save-notif.error button .hi-icon { width: 0.9rem; height: 0.9rem; }
+
+                /* Loading from DB Notification */
+                .loading-notif {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6rem;
+                    padding: 0.75rem 1.15rem;
+                    border-radius: 12px;
+                    font-size: 0.82rem;
+                    font-weight: 500;
+                    background: rgba(99, 102, 241, 0.12);
+                    border: 1px solid rgba(99, 102, 241, 0.3);
+                    color: #a5b4fc;
+                    animation: pgFadeIn 0.2s ease;
+                }
+                .loading-notif .hi-icon { width: 1rem; height: 1rem; }
+
+                /* Spinning Animation */
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .spinning {
+                    animation: spin 1s linear infinite;
+                }
 
                 @media (max-width: 640px) {
                     .insight-page { padding: 0.75rem; }

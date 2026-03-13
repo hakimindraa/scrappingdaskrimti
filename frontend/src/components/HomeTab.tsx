@@ -159,8 +159,8 @@ export default function HomeTab({ onNavigate }: HomeTabProps) {
                     </div>
                     <div className="hero-right">
                         <div className="clock">
-                            <span className="clock-time">{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                            <span className="clock-date">{currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            <span className="clock-time" suppressHydrationWarning>{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                            <span className="clock-date" suppressHydrationWarning>{currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</span>
                         </div>
                         <div className="hero-actions">
                             <button className={`pill ${autoRefresh ? 'live' : ''}`} onClick={() => setAutoRefresh(!autoRefresh)}>
