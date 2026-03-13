@@ -89,8 +89,10 @@ export default function InsightTab() {
         return asalKelompokOverrides[asal] || ASAL_KELOMPOK_MAP[asal] || '';
     };
 
-    // --- Year Override State ---
-    const [tahunOverride, setTahunOverride] = useState<number | null>(null);
+    // --- Year Filter & Per-Row Year Override State ---
+    const [filterTahun, setFilterTahun] = useState<number | null>(null);
+    const [yearRowOverrides, setYearRowOverrides] = useState<Record<string, number>>({});
+    const [monthRowOverrides, setMonthRowOverrides] = useState<Record<string, number>>({});
 
     // --- Load overrides from database on mount ---
     useEffect(() => {
@@ -215,18 +217,30 @@ export default function InsightTab() {
     const fileInputRefKeluar = useRef<HTMLInputElement>(null);
     const asalChartRef = useRef<HTMLDivElement>(null);
 
-    // --- Filtered Rows (reactive to month filter + year override) ---
+    // --- Compute available years from data (respecting per-row overrides) ---
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        rawRows.forEach(r => years.add(yearRowOverrides[r.rowId] ?? r.year));
+        rawRowsKeluar.forEach(r => years.add(yearRowOverrides[r.rowId] ?? r.year));
+        return Array.from(years).sort();
+    }, [rawRows, rawRowsKeluar, yearRowOverrides]);
+
+    // --- Filtered Rows (reactive to month filter + year filter + per-row overrides) ---
     const filteredRows = useMemo(() => {
         return rawRows
+            .map(r => yearRowOverrides[r.rowId] != null ? { ...r, year: yearRowOverrides[r.rowId] } : r)
+            .map(r => monthRowOverrides[r.rowId] != null ? { ...r, month: monthRowOverrides[r.rowId] } : r)
             .filter(r => r.month >= bulanDari && r.month <= bulanSampai)
-            .map(r => tahunOverride ? { ...r, year: tahunOverride } : r);
-    }, [rawRows, bulanDari, bulanSampai, tahunOverride]);
+            .filter(r => filterTahun ? r.year === filterTahun : true);
+    }, [rawRows, bulanDari, bulanSampai, filterTahun, yearRowOverrides, monthRowOverrides]);
 
     const filteredRowsKeluar = useMemo(() => {
         return rawRowsKeluar
+            .map(r => yearRowOverrides[r.rowId] != null ? { ...r, year: yearRowOverrides[r.rowId] } : r)
+            .map(r => monthRowOverrides[r.rowId] != null ? { ...r, month: monthRowOverrides[r.rowId] } : r)
             .filter(r => r.month >= bulanDari && r.month <= bulanSampai)
-            .map(r => tahunOverride ? { ...r, year: tahunOverride } : r);
-    }, [rawRowsKeluar, bulanDari, bulanSampai, tahunOverride]);
+            .filter(r => filterTahun ? r.year === filterTahun : true);
+    }, [rawRowsKeluar, bulanDari, bulanSampai, filterTahun, yearRowOverrides, monthRowOverrides]);
 
     // --- Jenis Data (computed from filteredRows + filteredRowsKeluar, with row-level overrides) ---
     const jenisData = useMemo((): JenisEntry[] => {
@@ -516,7 +530,9 @@ export default function InsightTab() {
             if (Object.keys(jenisCounts).length > 0) setHasUploadedJenis(true);
             if (Object.keys(asalCounts).length > 0) setHasUploadedAsal(true);
 
-            setTahunOverride(null);
+            setYearRowOverrides({});
+            setMonthRowOverrides({});
+            setFilterTahun(null);
 
             setUploadInfo(prev => ({
                 ...prev,
@@ -798,51 +814,7 @@ export default function InsightTab() {
                     </div>
                 )}
 
-                {/* Year Override Section */}
-                {dataYear && (
-                    <div className="pg-year-override">
-                        <div className="pg-year-info">
-                            <CalendarIcon className="pg-year-icon" />
-                            <div className="pg-year-info-text">
-                                <span className="pg-year-info-label">Tahun Terdeteksi:</span>
-                                <span className="pg-year-info-value">
-                                    {dataYear.min === dataYear.max 
-                                        ? dataYear.min 
-                                        : `${dataYear.min} - ${dataYear.max}`}
-                                </span>
-                            </div>
-                        </div>
-                        
-                        <div className="pg-year-control">
-                            <label className="pg-year-label">
-                                <PencilIcon className="pg-year-label-icon" />
-                                Override Tahun:
-                            </label>
-                            <select 
-                                className="pg-year-select"
-                                value={tahunOverride || ''}
-                                onChange={e => setTahunOverride(e.target.value ? Number(e.target.value) : null)}
-                            >
-                                <option value="">Gunakan Tahun Asli</option>
-                                {Array.from({ length: 11 }, (_, i) => 2020 + i).map(year => (
-                                    <option key={year} value={year}>{year}</option>
-                                ))}
-                            </select>
-                        </div>
-                        
-                        {tahunOverride && (
-                            <button 
-                                className="pg-year-reset"
-                                onClick={() => setTahunOverride(null)}
-                            >
-                                <ArrowPathIcon className="hi-icon" />
-                                Reset ke Tahun Asli
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* Month Filter Dropdown */}
+                {/* Month & Year Filter Dropdowns */}
                 {availableRange && (
                     <div className="pg-month-filter">
                         <span className="pg-month-label">Filter Bulan:</span>
@@ -873,6 +845,32 @@ export default function InsightTab() {
                                 <option key={m} value={m}>{MONTH_LABELS_FULL[m - 1]}</option>
                             ))}
                         </select>
+
+                        {availableYears.length > 0 && (
+                            <>
+                                <span className="pg-month-dash">|</span>
+                                <span className="pg-month-label">Filter Tahun:</span>
+                                <select
+                                    className="pg-month-select"
+                                    value={filterTahun || ''}
+                                    onChange={e => setFilterTahun(e.target.value ? Number(e.target.value) : null)}
+                                >
+                                    <option value="">Semua Tahun</option>
+                                    {availableYears.map(y => (
+                                        <option key={y} value={y}>{y}</option>
+                                    ))}
+                                </select>
+                                {filterTahun && (
+                                    <button 
+                                        className="pg-year-reset-inline"
+                                        onClick={() => setFilterTahun(null)}
+                                        title="Reset filter tahun"
+                                    >
+                                        <ArrowPathIcon className="hi-icon" />
+                                    </button>
+                                )}
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -1137,14 +1135,14 @@ export default function InsightTab() {
                                             {isExpanded && (
                                                 <div className="detail-accordion-body">
                                                     <table className="pg-table">
-                                                        <thead><tr><th style={{width:40}}>No</th><th>Jenis Surat</th><th>Asal</th><th style={{width:110}}>Tanggal</th><th style={{width:80}}>Tipe</th><th style={{width:90}}>Aksi</th></tr></thead>
+                                                        <thead><tr><th style={{width:40}}>No</th><th>Jenis Surat</th><th>Asal</th><th style={{width:140}}>Tanggal</th><th style={{width:80}}>Tipe</th><th style={{width:90}}>Aksi</th></tr></thead>
                                                         <tbody>
                                                             {rows.map((r, i) => (
                                                                 <tr key={i}>
                                                                     <td className="pg-td-count">{i + 1}</td>
                                                                     <td className="pg-td-asal">{r.jenis}</td>
                                                                     <td className="pg-td-asal">{r.asal}</td>
-                                                                    <td className="pg-td-count">{MONTH_LABELS[r.month - 1]} {r.year}</td>
+                                                                    <td className="pg-td-count pg-td-tanggal"><select className="pg-month-inline-select" value={monthRowOverrides[r.rowId] ?? r.month} onChange={ev => setMonthRowOverrides(prev => ({ ...prev, [r.rowId]: Number(ev.target.value) }))}>{MONTH_LABELS.map((lbl, idx) => (<option key={idx+1} value={idx+1}>{lbl}</option>))}</select>{' '}<select className="pg-year-inline-select" value={yearRowOverrides[r.rowId] ?? r.year} onChange={ev => setYearRowOverrides(prev => ({ ...prev, [r.rowId]: Number(ev.target.value) }))}>{availableYears.map(y => (<option key={y} value={y}>{y}</option>))}{!availableYears.includes(yearRowOverrides[r.rowId] ?? r.year) && (<option value={yearRowOverrides[r.rowId] ?? r.year}>{yearRowOverrides[r.rowId] ?? r.year}</option>)}</select></td>
                                                                     <td style={{minWidth:60, textAlign:'center'}}><span className={`pg-tag ${r.tipe === 'Masuk' ? 'green' : 'red'}`} style={{whiteSpace:'nowrap'}}>{r.tipe}</span></td>
                                                                     <td className="detail-aksi-cell">
                                                                         <button className="detail-aksi-btn edit" title="Edit kategori" onClick={() => handleDetailEditJenis(r.rowId, r.jenis)}><PencilIcon style={{width:14,height:14}} /></button>
@@ -1194,14 +1192,14 @@ export default function InsightTab() {
                                             {isExpanded && (
                                                 <div className="detail-accordion-body">
                                                     <table className="pg-table">
-                                                        <thead><tr><th style={{width:40}}>No</th><th>Asal</th><th>Jenis Surat</th><th style={{width:110}}>Tanggal</th><th style={{width:90}}>Aksi</th></tr></thead>
+                                                        <thead><tr><th style={{width:40}}>No</th><th>Asal</th><th>Jenis Surat</th><th style={{width:140}}>Tanggal</th><th style={{width:90}}>Aksi</th></tr></thead>
                                                         <tbody>
                                                             {rows.map((r, i) => (
                                                                 <tr key={i}>
                                                                     <td className="pg-td-count">{i + 1}</td>
                                                                     <td className="pg-td-asal">{r.asal}</td>
                                                                     <td className="pg-td-asal">{r.jenis}</td>
-                                                                    <td className="pg-td-count">{MONTH_LABELS[r.month - 1]} {r.year}</td>
+                                                                    <td className="pg-td-count pg-td-tanggal"><select className="pg-month-inline-select" value={monthRowOverrides[r.rowId] ?? r.month} onChange={ev => setMonthRowOverrides(prev => ({ ...prev, [r.rowId]: Number(ev.target.value) }))}>{MONTH_LABELS.map((lbl, idx) => (<option key={idx+1} value={idx+1}>{lbl}</option>))}</select>{' '}<select className="pg-year-inline-select" value={yearRowOverrides[r.rowId] ?? r.year} onChange={ev => setYearRowOverrides(prev => ({ ...prev, [r.rowId]: Number(ev.target.value) }))}>{availableYears.map(y => (<option key={y} value={y}>{y}</option>))}{!availableYears.includes(yearRowOverrides[r.rowId] ?? r.year) && (<option value={yearRowOverrides[r.rowId] ?? r.year}>{yearRowOverrides[r.rowId] ?? r.year}</option>)}</select></td>
                                                                     <td className="detail-aksi-cell">
                                                                         <button className="detail-aksi-btn edit" title="Edit kelompok" onClick={() => handleDetailEditAsal(r.rowId, r.asal)}><PencilIcon style={{width:14,height:14}} /></button>
                                                                         <button className="detail-aksi-btn hapus" title="Hapus dari kelompok" onClick={() => handleDetailRemoveAsal(r.rowId, r.asal)}><TrashIcon style={{width:14,height:14}} /></button>
@@ -1462,9 +1460,9 @@ export default function InsightTab() {
                         <span className="period-sep">—</span>
                         <span className="period-badge">{availableRange ? MONTH_LABELS[bulanSampai - 1].toUpperCase() : 'SEP'}</span>
                         <span className="period-year-full">
-                            {tahunOverride 
-                                ? tahunOverride 
-                                : (dataYear ? dataYear.min : 2025)}
+                            {filterTahun 
+                                ? filterTahun 
+                                : (dataYear ? (dataYear.min === dataYear.max ? dataYear.min : `${dataYear.min}-${dataYear.max}`) : 2025)}
                         </span>
                     </div>
                 </div>
@@ -2091,6 +2089,77 @@ export default function InsightTab() {
                     font-size: 1rem;
                     color: #94a3b8;
                     font-weight: 600;
+                }
+                .pg-year-reset-inline {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 8px;
+                    border: 1.5px solid #d1fae5;
+                    background: #fff;
+                    color: #059669;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    flex-shrink: 0;
+                }
+                .pg-year-reset-inline .hi-icon {
+                    width: 0.85rem;
+                    height: 0.85rem;
+                }
+                .pg-year-reset-inline:hover {
+                    background: #059669;
+                    color: #fff;
+                    border-color: #059669;
+                    transform: rotate(180deg);
+                }
+                .pg-year-inline-select {
+                    padding: 0.2rem 0.35rem;
+                    border: 1.5px solid #e2e8f0;
+                    border-radius: 6px;
+                    font-size: 0.78rem;
+                    font-weight: 700;
+                    color: #064e3b;
+                    background: #f0fdf4;
+                    cursor: pointer;
+                    outline: none;
+                    transition: all 0.2s;
+                    min-width: 65px;
+                }
+                .pg-year-inline-select:hover {
+                    border-color: #059669;
+                    background: #ecfdf5;
+                }
+                .pg-year-inline-select:focus {
+                    border-color: #059669;
+                    box-shadow: 0 0 0 2px rgba(5,150,105,0.12);
+                    background: #fff;
+                }
+                .pg-td-tanggal {
+                    white-space: nowrap;
+                }
+                .pg-month-inline-select {
+                    padding: 0.2rem 0.35rem;
+                    border: 1.5px solid #e2e8f0;
+                    border-radius: 6px;
+                    font-size: 0.78rem;
+                    font-weight: 700;
+                    color: #1e1b4b;
+                    background: #f5f3ff;
+                    cursor: pointer;
+                    outline: none;
+                    transition: all 0.2s;
+                    min-width: 55px;
+                }
+                .pg-month-inline-select:hover {
+                    border-color: #7c3aed;
+                    background: #ede9fe;
+                }
+                .pg-month-inline-select:focus {
+                    border-color: #7c3aed;
+                    box-shadow: 0 0 0 2px rgba(124,58,237,0.12);
+                    background: #fff;
                 }
                 
                 /* ===== Year Override Section ===== */
@@ -2977,15 +3046,9 @@ export default function InsightTab() {
                     .pg-filter-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
                 }
                 @media (max-width: 768px) {
-                    .pg-year-override {
-                        flex-direction: column;
-                        align-items: flex-start;
-                        gap: 1rem;
-                    }
-                    .pg-year-reset {
-                        margin-left: 0;
-                        width: 100%;
-                        justify-content: center;
+                    .pg-month-filter {
+                        flex-wrap: wrap;
+                        gap: 0.5rem;
                     }
                 }
                 /* ===== Detail Per Kategori Tab ===== */
